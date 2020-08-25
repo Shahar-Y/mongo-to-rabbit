@@ -21,6 +21,12 @@
   },
   "homepage": "https://github.com/Shahar-Y/mongo-to-rabbit#readme",
   "devDependencies": {
+    "@types/mongodb": "^3.5.26",
+    "@types/mongoose": "^5.7.36",
     "typescript": "^4.0.2"
+  },
+  "dependencies": {
+    "amqplib": "^0.6.0",
+    "mongoose": "^5.10.0"
   }
 }
