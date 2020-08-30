@@ -5,10 +5,10 @@
   "main": "lib/index.js",
   "types": "lib",
   "scripts": {
-    "start": "tsc -p . && npm run serve",
+    "start": "tsc && npm run serve",
     "serve": "node lib/index.js",
-    "build": "tsc -p .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -rp .",
+    "test": "tsc -p . && node lib/example/test.js"
   },
   "repository": {
     "type": "git",
@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/Shahar-Y/mongo-to-rabbit#readme",
   "devDependencies": {
+    "@types/amqplib": "^0.5.13",
     "@types/mongodb": "^3.5.26",
     "@types/mongoose": "^5.7.36",
     "typescript": "^4.0.2"
