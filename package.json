@@ -8,7 +8,8 @@
     "start": "tsc && npm run serve",
     "serve": "node lib/index.js",
     "build": "tsc -rp .",
-    "test": "tsc -p . && node lib/example/test.js"
+    "receive": "tsc && node lib/example/receive.js",
+    "connect": "tsc -p . && node lib/example/connect.js"
   },
   "repository": {
     "type": "git",

@@ -17,7 +17,7 @@ amqp.connect('amqp://localhost', function (error0: Error, connection: amqp.Conne
         }
         console.log('createChannel finished!');
 
-        var queue = 'myQueueName2';
+        var queue = 'myQueueName';
         channel.assertQueue(queue, {
             durable: false
         });
