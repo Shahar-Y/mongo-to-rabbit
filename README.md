@@ -39,7 +39,7 @@ contains 6 fields:
 | 6 | `prettify` | `boolean`  | if true, will filter the result and send it in a specific formt |
 
 #### Example: 
-
+```node
 `let rabbitData = {  
     queueName: 'myQueueName',  
     rabbitURI: 'amqp://localhost'  
@@ -54,12 +54,13 @@ contains 6 fields:
     replicaSet: 'rs0',  
     prettify: false  
 };`  
-
+```
 `mongoRabbit.watchAndNotify(mongoData, rabbitData);`
 
 * For a more specific example, look at the `src/example` folder.
 
 #### The prettified type format:
+```node
 type DataObjectType = {  
     id: string;  
     operation: string;  
@@ -69,4 +70,5 @@ type DataObjectType = {
         removedFields: string[];  
     };  
 }
+```
 * will only work on these operations: `insert`, `replace`, `update`, `delete`
