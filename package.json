@@ -1,0 +1,34 @@
+{
+  "name": "mongo-to-rabbit",
+  "version": "1.0.0",
+  "description": "a mongodb watcher notifying rabbitmq",
+  "main": "lib/index.js",
+  "types": "lib",
+  "scripts": {
+    "start": "tsc && npm run serve",
+    "serve": "node lib/index.js",
+    "build": "tsc -rp .",
+    "receive": "tsc && node lib/example/receive.js",
+    "connect": "tsc -p . && node lib/example/connect.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shahar-Y/mongo-to-rabbit.git"
+  },
+  "author": "Shahar Yair",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Shahar-Y/mongo-to-rabbit/issues"
+  },
+  "homepage": "https://github.com/Shahar-Y/mongo-to-rabbit#readme",
+  "devDependencies": {
+    "@types/amqplib": "^0.5.13",
+    "@types/mongodb": "^3.5.26",
+    "@types/mongoose": "^5.7.36",
+    "typescript": "^4.0.2"
+  },
+  "dependencies": {
+    "amqplib": "^0.6.0",
+    "mongoose": "^5.10.0"
+  }
+}
