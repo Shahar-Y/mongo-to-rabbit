@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import mongodb from 'mongodb';
-import * as send from './rabbit';
 import { MongoDataType, RabbitDataType, DataObjectType } from './paramTypes';
+import { menash } from 'menashmq';
+
 
 export function add(n1: number, n2: number): number {
     return n1 + n2 + 1;
@@ -16,7 +17,9 @@ export function add(n1: number, n2: number): number {
  */
 export async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType) {
     console.log('connecting to rabbitMQ');
-    send.connectToQueue(rabbitData.rabbitURI, rabbitData.queueName);
+    // send.connectToQueue(rabbitData.rabbitURI, rabbitData.queueName);
+    await menash.connect(rabbitData.rabbitURI);
+    await menash.declareQueue(rabbitData.queueName, {durable: true});
 
     console.log('connecting to mongo')
     connectToMongo(mongoData.mongoURI, mongoData.dbName, mongoData.replicaSet);
@@ -38,9 +41,8 @@ async function connectToMongo(mongoURI: string, dbName: string, replicaSet: stri
     await mongoose.connect(connectionString, { useNewUrlParser: true });
 }
 
-
 /**
- * 
+ * Initializes the mongo watcher, given the mongo data.
  * @param model - the mongoose model.
  * @param pipeline - contains the db name and collection name.
  * @param qName - The name of the queue to publish to.
@@ -85,11 +87,11 @@ function initWatch(model: mongoose.Model<mongoose.Document>, pipeline: any, qNam
             }
 
             console.log(dataObject);
-            send.publishToQueue(qName, JSON.stringify({ operation, data: dataObject }));
+            menash.send(qName, { operation, data: dataObject });
 
             return;
         }
-        send.publishToQueue(qName, JSON.stringify(data));
+        menash.send(qName, data);
 
     });
     console.log('finished initWatch');
