@@ -3,11 +3,6 @@ import mongodb from 'mongodb';
 import { MongoDataType, RabbitDataType, DataObjectType } from './paramTypes';
 import { menash } from 'menashmq';
 
-
-export function add(n1: number, n2: number): number {
-    return n1 + n2 + 1;
-}
-
 // TODO: add options. 
 /**
  * The main function of the package.
@@ -17,7 +12,6 @@ export function add(n1: number, n2: number): number {
  */
 export async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType) {
     console.log('connecting to rabbitMQ');
-    // send.connectToQueue(rabbitData.rabbitURI, rabbitData.queueName);
     await menash.connect(rabbitData.rabbitURI);
     await menash.declareQueue(rabbitData.queueName, {durable: true});
 
@@ -74,19 +68,9 @@ function initWatch(model: mongoose.Model<mongoose.Document>, pipeline: any, qNam
                     break;
                 case 'delete':
                     break;
-                // case 'rename':
-                //     break;
-                // case 'drop':
-                //     break;
-                // case 'dropDatabase':
-                //     break;
-                // case 'invalidate':
-                //     break;
                 default:
                     console.log(`An unknown operation occured: ${operation}`);
             }
-
-            console.log(dataObject);
             menash.send(qName, { operation, data: dataObject });
 
             return;
