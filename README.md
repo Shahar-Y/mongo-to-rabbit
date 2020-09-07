@@ -1,6 +1,9 @@
 # mongo-to-rabbit
 
-An npm package designed for listening to a Mongodb and notifying a RabbitMQ server on changes.
+An npm package designed for listening to a MongoDB and notifying a RabbitMQ server on changes.
+
+Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to RabbitMQ,
+and [mongoose](https://mongoosejs.com/) for modeling the connection to MongoDB.
 
 ## To run the package locally with the example: 
 1. run rabbit locally: `docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`
@@ -39,7 +42,7 @@ contains 6 fields:
 | 6 | `prettify` | `boolean`  | if true, will filter the result and send it in a specific formt |
 
 #### Example: 
-
+```node
 `let rabbitData = {  
     queueName: 'myQueueName',  
     rabbitURI: 'amqp://localhost'  
@@ -54,12 +57,13 @@ contains 6 fields:
     replicaSet: 'rs0',  
     prettify: false  
 };`  
-
+```
 `mongoRabbit.watchAndNotify(mongoData, rabbitData);`
 
 * For a more specific example, look at the `src/example` folder.
 
 #### The prettified type format:
+```node
 type DataObjectType = {  
     id: string;  
     operation: string;  
@@ -69,4 +73,5 @@ type DataObjectType = {
         removedFields: string[];  
     };  
 }
+```
 * will only work on these operations: `insert`, `replace`, `update`, `delete`
