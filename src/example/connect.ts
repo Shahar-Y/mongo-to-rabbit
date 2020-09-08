@@ -1,50 +1,32 @@
-import { Schema, model } from 'mongoose';
+
 import * as mongoRabbit from '../index';
 import { MongoDataType, RabbitDataType } from '../paramTypes';
+import { ConnectionStringParser as CSParser } from 'connection-string-parser';
 
-
-const collectionName: string = 'files';
-const fileSchema: Schema = new Schema(
-    {
-        key: {
-        type: String,
-        },
-        name: {
-        type: String,
-        required: true,
-        }
-    },
-    );
-
-const fileModel = model(collectionName, fileSchema);
+const csParser = new CSParser({
+    scheme: "mongodb",
+    hosts: []
+});
 
 var mongoData: MongoDataType = {
-    collectionName,
-    mongoURI: 'mongodb://localhost:27017',
-    mongoModel: fileModel,
-    dbName: 'devDB',
-    replicaSet: 'rs0',
+    collectionName: 'files',
+    connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
     prettify: true
 };
-
 var rabbitData: RabbitDataType = {
-    queueName: 'myQueueName',
+    queueName: 'MyQueueName1',
     rabbitURI: 'amqp://localhost'
 };
 
 var rabbitData2: RabbitDataType = {
-    queueName: 'myQueueName2',
+    queueName: 'MyQueueName2',
     rabbitURI: 'amqp://localhost'
 };
-let mongoData2 = {
-    collectionName,
-    mongoURI: 'mongodb://localhost:27017',
-    mongoModel: fileModel,
-    dbName: 'devDB',
-    replicaSet: 'rs0',
+let mongoData2: MongoDataType = {
+    collectionName: 'files',
+    connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
     prettify: false
 };
-
 
 mongoRabbit.watchAndNotify(mongoData, rabbitData);
 mongoRabbit.watchAndNotify(mongoData2, rabbitData2);
