@@ -1,11 +1,8 @@
 import mongoose from 'mongoose';
 
 export type MongoDataType = {
-    mongoURI: string;
-    replicaSet: string; 
-    dbName: string;
     collectionName: string;
-    mongoModel: mongoose.Model<mongoose.Document>;
+    connectionString: string;
     prettify: boolean;
 };
 
