@@ -1,7 +1,14 @@
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
 import mongodb from 'mongodb';
 import { MongoDataType, RabbitDataType, DataObjectType } from './paramTypes';
 import { menash } from 'menashmq';
+import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
+
+const csParser = new CSParser({
+    scheme: "mongodb",
+    hosts: []
+});
+
 
 // TODO: add options. 
 /**
@@ -13,26 +20,12 @@ import { menash } from 'menashmq';
 export async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType) {
     console.log('connecting to rabbitMQ');
     await menash.connect(rabbitData.rabbitURI);
-    await menash.declareQueue(rabbitData.queueName, {durable: true});
+    await menash.declareQueue(rabbitData.queueName, { durable: true });
 
-    console.log('connecting to mongo')
-    connectToMongo(mongoData.mongoURI, mongoData.dbName, mongoData.replicaSet);
-    const pipeline = [{ $match: { 'ns.db': mongoData.dbName, 'ns.coll': mongoData.collectionName } }];
-    initWatch(mongoData.mongoModel, pipeline, rabbitData.queueName, mongoData.prettify);
-}
-
-/**
- * Connects to the mongo collection required to be watched.
- * @param mongoURI - the URI to connect to mongo.
- * @param dbName - the DB name.
- * @param replicaSet - The name of the replicaSet.
- */
-async function connectToMongo(mongoURI: string, dbName: string, replicaSet: string) {
-    // Connect to the replica set
-    // TODO: username and password - ?
-    const connectionString : string = `${mongoURI}/${dbName}?replicaSet=${replicaSet}`;
-    console.log(`connecting to ${connectionString}`);
-    await mongoose.connect(connectionString, { useNewUrlParser: true });
+    console.log('connecting to mongo');
+    const connectionObject: IConnectionStringParameters = csParser.parse(mongoData.connectionString);
+    const pipeline = [{ $match: { 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
+    initWatch(mongoData, connectionObject, rabbitData.queueName, pipeline, mongoData.prettify);
 }
 
 /**
@@ -42,41 +35,54 @@ async function connectToMongo(mongoURI: string, dbName: string, replicaSet: stri
  * @param qName - The name of the queue to publish to.
  * @param prettify - boolean, wheather or not to prettify the information sent.
  */
-function initWatch(model: mongoose.Model<mongoose.Document>, pipeline: any, qName: string, prettify: boolean){
-    model.watch(pipeline).on('change', async (data: mongodb.ChangeEvent<Object>) => {
-        if (!data) return;
-        if (prettify) {
-            const operation: string = data.operationType || 'unknown';
-            let id : string = 'null'; 
-            if((<any>data).documentKey) {
-                id = (<any>data).documentKey._id;
-            }
+function initWatch(mongoData: MongoDataType, connectionObject: IConnectionStringParameters, qName: string, pipeline: any = [], prettify: boolean) {
+    mongodb.MongoClient.connect(mongoData.connectionString).then(client => {
+        console.log("Connected to MongoDB server");
+        // Select DB and Collection
+        const db = client.db(connectionObject.endpoint);
+        const collection = db.collection(mongoData.collectionName);
 
-            // Create the basic dataObject
-            let dataObject: DataObjectType = { operation, id, fullDocument: {}, updateDecsctiption: { updatedFields: {}, removedFields: []} };
-    
-            switch (operation) {
-                case 'insert':
-                    dataObject.fullDocument = (<any>data).fullDocument;
-                    break;
-                case 'replace':
-                    dataObject.fullDocument = (<any>data).fullDocument;
-                    break;
-                case 'update':
-                    dataObject.fullDocument = (<any>data).fullDocument
-                    dataObject.updateDecsctiption = (<any>data).updateDescription;
-                    break;
-                case 'delete':
-                    break;
-                default:
-                    console.log(`An unknown operation occured: ${operation}`);
-            }
-            menash.send(qName, { operation, data: dataObject });
+        // Define change stream
+        const changeStream = collection.watch(pipeline);
+        // start listen to changes
+        changeStream.on("change", function (event: mongodb.ChangeEvent<Object>) {
 
-            return;
-        }
-        menash.send(qName, data);
-
+            const formattedData = prettify ? prettifyData(event) : event;
+            menash.send(qName, formattedData);
+        });
     });
     console.log('finished initWatch');
+}
+
+function prettifyData(data: mongodb.ChangeEvent<Object>): DataObjectType {
+    // Create the basic dataObject
+    const dataObject: DataObjectType = { id: 'null', operation: 'unknown', fullDocument: {}, updateDecsctiption: { updatedFields: {}, removedFields: [] } };
+
+    if (!data) {
+        return dataObject;
+    }
+
+    dataObject.operation = data.operationType || 'unknown';
+    if ((<any>data).documentKey) {
+        dataObject.id = (<any>data).documentKey._id;
+    }
+
+    switch (dataObject.operation) {
+        case 'insert':
+            dataObject.fullDocument = (<any>data).fullDocument;
+            break;
+        case 'replace':
+            dataObject.fullDocument = (<any>data).fullDocument;
+            break;
+        case 'update':
+            dataObject.fullDocument = (<any>data).fullDocument
+            dataObject.updateDecsctiption = (<any>data).updateDescription;
+            break;
+        case 'delete':
+            break;
+        default:
+            console.log(`An unknown operation occured: ${dataObject.operation}`);
+    }
+
+    return dataObject;
 }

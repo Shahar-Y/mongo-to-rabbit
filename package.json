@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "amqplib": "^0.6.0",
+    "connection-string-parser": "^1.0.3",
     "menashmq": "^0.1.3",
     "mongoose": "^5.10.0"
   }

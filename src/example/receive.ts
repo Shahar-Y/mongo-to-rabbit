@@ -1,13 +1,16 @@
 import * as amqp from 'amqplib/callback_api';
 
+connectReceiver('R1', 'MyQueueName1');
+connectReceiver('R2', 'MyQueueName2');
 
-amqp.connect('amqp://localhost', function (error0: Error, connection: amqp.Connection) {
+function connectReceiver(receiverName: string, queueName: string) {
+    amqp.connect('amqp://localhost', function (error0: Error, connection: amqp.Connection) {
     if (error0) {
         console.log('error detected on amqp.connect!');
         console.log(error0);
         throw error0;
     }
-    console.log('connected to amqp.connect');
+    console.log(`(${receiverName}) : connected to amqp.connect`);
 
     connection.createChannel(function (error1: Error, channel: amqp.Channel) {
         if (error1) {
@@ -15,24 +18,21 @@ amqp.connect('amqp://localhost', function (error0: Error, connection: amqp.Conne
             console.log(error1);
             throw error1;
         }
-        console.log('createChannel finished!');
+        console.log(`(${receiverName}) : createChannel finished! connecting to ${queueName}`);
 
-        var queue = 'myQueueName';
-        channel.assertQueue(queue, {
-            durable: false
+        channel.assertQueue(queueName, {
+            durable: true
         });
-        console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queue);
-        channel.consume(queue, function (msg) {
+        console.log(` (${receiverName}) : Waiting for messages in %s. To exit press CTRL+C`, queueName);
+        channel.consume(queueName, function (msg) {
             if(!msg) {
-                console.log('BAD MESSAGE');
+                console.log(`(${receiverName}) : BAD MESSAGE`);
                 return;
             }
-            console.log(" [x] Received %s", msg.content.toString());
+            console.log(` (${receiverName}) : Received %s`, msg.content.toString());
         }, {
             noAck: true
         });
     });
 });
-
-
-
+}
