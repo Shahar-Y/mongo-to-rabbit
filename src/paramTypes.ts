@@ -1,9 +1,6 @@
-import mongoose from 'mongoose';
-
 export type MongoDataType = {
     collectionName: string;
     connectionString: string;
-    prettify: boolean;
 };
 
 export type RabbitDataType = {
@@ -15,8 +12,13 @@ export type DataObjectType = {
     id: string;
     operation: string;
     fullDocument: object;
-    updateDecsctiption: {
+    updateDescription: {
         updatedFields: object;
         removedFields: string[];
     };
+}
+
+export type MTROptions = {
+    silent: boolean;
+    prettify: boolean;
 }

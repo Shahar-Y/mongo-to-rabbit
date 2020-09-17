@@ -1,32 +1,30 @@
 
 import * as mongoRabbit from '../index';
-import { MongoDataType, RabbitDataType } from '../paramTypes';
-import { ConnectionStringParser as CSParser } from 'connection-string-parser';
+import { MongoDataType, MTROptions, RabbitDataType } from '../paramTypes';
 
-const csParser = new CSParser({
-    scheme: "mongodb",
-    hosts: []
-});
+// Create two colQCouples and connect to two different queues.
 
-var mongoData: MongoDataType = {
+const mongoData1: MongoDataType = {
     collectionName: 'files',
     connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
-    prettify: true
 };
-var rabbitData: RabbitDataType = {
+const rabbitData1: RabbitDataType = {
     queueName: 'MyQueueName1',
     rabbitURI: 'amqp://localhost'
 };
 
-var rabbitData2: RabbitDataType = {
+const options1: Partial<MTROptions> = { silent: false }
+
+const rabbitData2: RabbitDataType = {
     queueName: 'MyQueueName2',
     rabbitURI: 'amqp://localhost'
 };
-let mongoData2: MongoDataType = {
+const mongoData2: MongoDataType = {
     collectionName: 'files',
     connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
-    prettify: false
 };
 
-mongoRabbit.watchAndNotify(mongoData, rabbitData);
+
+
+mongoRabbit.watchAndNotify(mongoData1, rabbitData1, options1);
 mongoRabbit.watchAndNotify(mongoData2, rabbitData2);
