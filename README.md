@@ -85,6 +85,6 @@ type DataObjectType = {
 * The `receive` script creates two consumers to Rabbit
 * If succeeded, you should see the result sent at the console.log of the receiver.
 
-![running example](src/utils/images/example_v2.0.0.gif)
+![running example](https://media.giphy.com/media/mT5dpljEpj5uscgFH9/giphy.gif)
 
 logo credit: <a href="https://www.vectorstock.com/royalty-free-vector/rabbit-leaf-naturally-creative-logo-vector-26785526">Vector image by VectorStock / ade01</a>
