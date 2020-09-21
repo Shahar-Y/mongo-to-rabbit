@@ -2,6 +2,18 @@
   "name": "mongo-to-rabbit",
   "version": "2.1.0",
   "description": "a mongodb watcher notifying rabbitmq",
+  "keywords": [
+    "rabbitmq",
+    "mongo",
+    "listener",
+    "rabbit",
+    "mq",
+    "typescript",
+    "mongodb",
+    "db",
+    "changes",
+    "watch"
+  ],
   "main": "lib/index.js",
   "types": "lib",
   "scripts": {
