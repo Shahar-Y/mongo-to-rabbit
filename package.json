@@ -1,6 +1,6 @@
 {
   "name": "mongo-to-rabbit",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "description": "a mongodb watcher notifying rabbitmq",
   "keywords": [
     "rabbitmq",
