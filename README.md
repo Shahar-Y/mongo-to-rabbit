@@ -9,8 +9,7 @@ An npm package designed for listening to MongoDB and notifying a RabbitMQ server
 
 ![MTR logo](src/utils/images/MTR-logo.jpeg)
 
-Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to RabbitMQ,
-and [mongoose](https://mongoosejs.com/) for modeling the connection to MongoDB.
+Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to RabbitMQ.
 
 
 ## Installation
