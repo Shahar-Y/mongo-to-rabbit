@@ -1,4 +1,4 @@
-# mongo-to-rabbit v2.1
+# mongo-to-rabbit v3.0
 
 ![npm](https://img.shields.io/npm/v/mongo-to-rabbit?color=green)
 ![NPM](https://img.shields.io/npm/l/mongo-to-rabbit)
@@ -9,9 +9,7 @@ An npm package designed for listening to MongoDB and notifying a RabbitMQ server
 
 ![MTR logo](src/utils/images/MTR-logo.jpeg)
 
-Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to RabbitMQ,
-and [mongoose](https://mongoosejs.com/) for modeling the connection to MongoDB.
-
+Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to RabbitMQ.
 
 ## Installation
 1. `npm i --save mongo-to-rabbit`
@@ -39,23 +37,26 @@ contains 3 fields:
 | #  | field | type | info | default |
 |---|---|---|---|---|
 | 1 | `silent`  | `boolean` | if false, logs connection and changes to the console | `true` |
-| 2 | `prettify `  | `boolean` | if true, will filter the result and send it in a specific format | `true`|
+| 2 | `prettify`  | `boolean` | if true, will filter the result and send it in a specific format | `true`|
+| 3 | `middleware`  | `(DataObjectType) => (string \| Object \| Buffer)` | will only work with `prettify:true`. A function for manipulating the prettified data received from the listener before sending it to the queue | [identity function](https://en.wikipedia.org/wiki/Identity_function) |
 
 #### Example: 
 ```node
-`let rabbitData = {  
-    queueName: 'myQueueName',  
-    rabbitURI: 'amqp://localhost'  
-};`  
+import watchAndNotify from 'mongo-to-rabbit';
+
+let rabbitData = {
+    queueName: 'myQueueName',
+    rabbitURI: 'amqp://localhost'
+};
 
 
-`let mongoData = {  
-    collectionName: 'files',  
+let mongoData = {  
+    collectionName: 'files',
     connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0'
-};`  
-```
-`mongoRabbit.watchAndNotify(mongoData, rabbitData);`
+};
 
+watchAndNotify(mongoData, rabbitData);
+```
 * For a more specific example, look at the `src/example` folder.
 
 #### The prettified type format:
@@ -82,7 +83,7 @@ type DataObjectType = {
 7. `db.files.insertOne({ "name": "it works!"})`
 
 * The `connect` script connects with two different configurations to mongo and rabbit. 
-* The `receive` script creates two consumers to Rabbit
+* The `receive` script creates two consumers to Rabbit.
 * If succeeded, you should see the result sent at the console.log of the receiver.
 
 ![running example](https://media.giphy.com/media/mT5dpljEpj5uscgFH9/giphy.gif)

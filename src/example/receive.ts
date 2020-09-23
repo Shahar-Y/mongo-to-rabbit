@@ -4,7 +4,7 @@ connectReceiver('R1', 'MyQueueName1');
 connectReceiver('R2', 'MyQueueName2');
 
 function connectReceiver(receiverName: string, queueName: string) {
-    amqp.connect('amqp://localhost', function (error0: Error, connection: amqp.Connection) {
+    amqp.connect('amqp://localhost', (error0: Error, connection: amqp.Connection) => {
     if (error0) {
         console.log('error detected on amqp.connect!');
         console.log(error0);
@@ -12,7 +12,7 @@ function connectReceiver(receiverName: string, queueName: string) {
     }
     console.log(`(${receiverName}) : connected to amqp.connect`);
 
-    connection.createChannel(function (error1: Error, channel: amqp.Channel) {
+    connection.createChannel((error1: Error, channel: amqp.Channel) => {
         if (error1) {
             console.log('error detected on connection.createChannel!');
             console.log(error1);
@@ -24,7 +24,7 @@ function connectReceiver(receiverName: string, queueName: string) {
             durable: true
         });
         console.log(` (${receiverName}) : Waiting for messages in %s. To exit press CTRL+C`, queueName);
-        channel.consume(queueName, function (msg) {
+        channel.consume(queueName, (msg) => {
             if(!msg) {
                 console.log(`(${receiverName}) : BAD MESSAGE`);
                 return;
