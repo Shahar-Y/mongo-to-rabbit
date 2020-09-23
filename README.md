@@ -38,7 +38,7 @@ contains 3 fields:
 |---|---|---|---|---|
 | 1 | `silent`  | `boolean` | if false, logs connection and changes to the console | `true` |
 | 2 | `prettify`  | `boolean` | if true, will filter the result and send it in a specific format | `true`|
-| 3 | `middleware`  | `(DataObjectType) => (string \| Object \| Buffer)` | will only work with `prettify:true`. A function for manipulating the prettified data received from the listener before sending it to the queue | identity function |
+| 3 | `middleware`  | `(DataObjectType) => (string \| Object \| Buffer)` | will only work with `prettify:true`. A function for manipulating the prettified data received from the listener before sending it to the queue | [identity function](https://en.wikipedia.org/wiki/Identity_function) |
 
 #### Example: 
 ```node
@@ -55,7 +55,7 @@ let mongoData = {
     connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0'
 };
 
-`watchAndNotify(mongoData, rabbitData);`
+watchAndNotify(mongoData, rabbitData);
 ```
 * For a more specific example, look at the `src/example` folder.
 
