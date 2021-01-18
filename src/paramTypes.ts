@@ -5,7 +5,7 @@ export type MongoDataType = {
 
 export type RabbitDataType = {
 	rabbitURI: string;
-	queueName: string;
+	queues: queueType[];
 }
 
 export type DataObjectType = {
@@ -18,8 +18,14 @@ export type DataObjectType = {
 	};
 }
 
+export type queueType = {name: string, middleware?: middlewareFunc};
+
+export type middlewareFunc = 
+	(dataObject: DataObjectType, 
+		collection: string) => (null| string | Object | Buffer |string[]
+								 | Object[] | Buffer[] | undefined);
+
 export type MTROptions = {
 	silent: boolean;
 	prettify: boolean;
-	middleware: (datqaObject: DataObjectType) => (string | Object | Buffer);
 }

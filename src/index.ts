@@ -1,22 +1,27 @@
 import mongodb from 'mongodb';
-import { menash } from 'menashmq';
-import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
-import { MongoDataType, RabbitDataType, DataObjectType, MTROptions } from './paramTypes';
 import log from './utils/logger';
+import { menash } from 'menashmq';
+import { ChangeStreamOptions } from 'mongodb';
+import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
+import { MongoDataType, RabbitDataType, DataObjectType, MTROptions, middlewareFunc, queueType } from './paramTypes';
 
 const csParser = new CSParser({
     scheme: 'mongodb',
     hosts: []
 });
 
+const defaultMiddleware: middlewareFunc = (data: DataObjectType,collection: string ) => {
+    return {data, collection};
+}
+
 const defaultOptions: MTROptions = {
     silent: true,
     prettify: true,
-    middleware: (data: DataObjectType) => {
-        return data;
-    }
 }
 
+const getQueuesNames = (rabbitData: RabbitDataType): string[] =>{
+    return [...rabbitData.queues.map(queue => queue.name)]
+}
 /**
  * The main function of the package.
  * Creates the listener to mongo and connects it to rabbit.
@@ -26,12 +31,8 @@ const defaultOptions: MTROptions = {
  */
 export default async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType, opts?: Partial<MTROptions>): Promise<void> {
     const options: MTROptions = { ...defaultOptions, ...opts };
-    if (opts?.middleware && !options.prettify) {
-        console.log('MTR: ===> error: middleware option cannot work when prettify is false');
-        return;
-    }
 
-    console.log(`MTR: ===> initiating connection for collection: ${mongoData.collectionName}, and queue: ${rabbitData.queueName}`)
+    console.log(`MTR: ===> initiating connection for collection: ${mongoData.collectionName}, and queues: ${getQueuesNames(rabbitData)}`)
     log(`connecting to rabbitMQ on URI: ${rabbitData.rabbitURI} ...`, options);
     // Check if menash already connected to rabbit.
     if (!menash.isReady) {
@@ -40,11 +41,22 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
     } else {
         log('rabbit already connected', options);
     }
-    await menash.declareQueue(rabbitData.queueName, { durable: true });
-    log(`successful connection to queue ${rabbitData.queueName}`, options);
+    
+    await Promise.all(rabbitData.queues.map(async (queue: queueType) => {
+        if (queue.middleware !== undefined && !options.prettify) {
+            console.log('MTR: ===> error: middleware option cannot work when prettify is false');
+        }
 
+        if(!(queue.name in menash.queues)){
+         await menash.declareQueue(queue.name, { durable: true });
+        }
+      
+        log(`successful connection to queue ${queue.name}`, options);
+    }));
+
+    log(`successful connection to all queues`, options);
     log(`connecting to mongo collection: ${mongoData.collectionName} with connectionString ${mongoData.connectionString} ...`, options);
-    initWatch(mongoData, rabbitData.queueName, options);
+    initWatch(mongoData, rabbitData.queues, options);
 }
 
 /**
@@ -53,9 +65,9 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
  * @param qName - The name of the queue to publish to.
  * @param options - contains the MTROptions.
  */
-function initWatch(mongoData: MongoDataType, qName: string, options: MTROptions) {
+function initWatch(mongoData: MongoDataType, queues: queueType[], options: MTROptions) {
 
-    mongodb.MongoClient.connect(mongoData.connectionString, { useUnifiedTopology: true }).then(client => {
+    mongodb.MongoClient.connect(mongoData.connectionString, { useUnifiedTopology: true}).then(client => {
         // Select DB and Collection
         const connectionObject: IConnectionStringParameters = csParser.parse(mongoData.connectionString);
         const db = client.db(connectionObject.endpoint);
@@ -63,12 +75,26 @@ function initWatch(mongoData: MongoDataType, qName: string, options: MTROptions)
 
         // Define change stream
         const pipeline = [{ $match: { 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
-        const changeStream = collection.watch(pipeline);
+        const optionsStream : ChangeStreamOptions = {fullDocument: 'updateLookup'}
+        const changeStream = collection.watch(pipeline, optionsStream);
         // start listen to changes
         changeStream.on('change', (event: mongodb.ChangeEvent<Object>) => {
-            const formattedData = options.prettify ? options.middleware(prettifyData(event, options)) : event;
-
-            menash.send(qName, formattedData);
+            queues.forEach((queue) => {
+                const formattedData = options.prettify ? 
+                    queue.middleware == undefined? 
+                        defaultMiddleware(prettifyData(event, options), mongoData.collectionName): 
+                        queue.middleware(prettifyData(event, options), mongoData.collectionName)
+                    : event;
+                
+                if (formattedData !== null && formattedData !== undefined) {
+                    if(Array.isArray(formattedData)){
+                        formattedData.forEach(dataContent => menash.send(queue.name, dataContent));
+                    }
+                    else {
+                        menash.send(queue.name, formattedData);
+                    }
+                }
+            });
         });
         console.log(`MTR: ===> successful connection to collection: ${mongoData.collectionName}`);
     });
