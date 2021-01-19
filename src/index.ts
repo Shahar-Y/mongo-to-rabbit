@@ -16,7 +16,7 @@ const defaultMiddleware: middlewareFunc = (data: DataObjectType,collection: stri
 
 const defaultOptions: MTROptions = {
     silent: true,
-    prettify: true,
+    prettify: true
 }
 
 const getQueuesNames = (rabbitData: RabbitDataType): string[] =>{
@@ -31,8 +31,8 @@ const getQueuesNames = (rabbitData: RabbitDataType): string[] =>{
  */
 export default async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType, opts?: Partial<MTROptions>): Promise<void> {
     const options: MTROptions = { ...defaultOptions, ...opts };
-
     console.log(`MTR: ===> initiating connection for collection: ${mongoData.collectionName}, and queues: ${getQueuesNames(rabbitData)}`)
+
     log(`connecting to rabbitMQ on URI: ${rabbitData.rabbitURI} ...`, options);
     // Check if menash already connected to rabbit.
     if (!menash.isReady) {
@@ -41,7 +41,7 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
     } else {
         log('rabbit already connected', options);
     }
-    
+
     await Promise.all(rabbitData.queues.map(async (queue: queueType) => {
         if (queue.middleware !== undefined && !options.prettify) {
             console.log('MTR: ===> error: middleware option cannot work when prettify is false');

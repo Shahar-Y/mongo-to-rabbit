@@ -27,7 +27,7 @@ const options1: Partial<MTROptions> = {silent: false}
 
 // Second colQCouple
 const mongoData2: MongoDataType = {
-	collectionName: 'permissions',
+	collectionName: 'files',
 	connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
 };
 
