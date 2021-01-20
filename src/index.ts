@@ -1,10 +1,18 @@
 import mongodb from 'mongodb';
 import log from './utils/logger';
-import { menash } from 'menashmq';
+import { MongoDataType,
+         RabbitDataType,
+         DataObjectType,
+         MTROptions,
+         middlewareFunc, 
+         queueObjectType} from './paramTypes';
+import { ConnectionStringParser as CSParser,
+         IConnectionStringParameters } from 'connection-string-parser';
+import {menash} from 'menashmq';
 import { ChangeStreamOptions } from 'mongodb';
-import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
-import { MongoDataType, RabbitDataType, DataObjectType, MTROptions, middlewareFunc, queueType } from './paramTypes';
+import { MongoClient } from 'mongodb';
 
+let mongoConn: MongoClient;
 const csParser = new CSParser({
     scheme: 'mongodb',
     hosts: []
@@ -16,12 +24,13 @@ const defaultMiddleware: middlewareFunc = (data: DataObjectType,collection: stri
 
 const defaultOptions: MTROptions = {
     silent: true,
-    prettify: true
+    prettify: true,
 }
 
-const getQueuesNames = (rabbitData: RabbitDataType): string[] =>{
-    return [...rabbitData.queues.map(queue => queue.name)]
+const getQueuesNames = (queues: queueObjectType[]): string[] =>{
+    return [...queues.map(queue => queue.name)]
 }
+
 /**
  * The main function of the package.
  * Creates the listener to mongo and connects it to rabbit.
@@ -31,32 +40,78 @@ const getQueuesNames = (rabbitData: RabbitDataType): string[] =>{
  */
 export default async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType, opts?: Partial<MTROptions>): Promise<void> {
     const options: MTROptions = { ...defaultOptions, ...opts };
-    console.log(`MTR: ===> initiating connection for collection: ${mongoData.collectionName}, and queues: ${getQueuesNames(rabbitData)}`)
-
-    log(`connecting to rabbitMQ on URI: ${rabbitData.rabbitURI} ...`, options);
-    // Check if menash already connected to rabbit.
-    if (!menash.isReady) {
-        await menash.connect(rabbitData.rabbitURI);
-        log(`successful connection to rabbitMQ on URI: ${rabbitData.rabbitURI}`, options);
-    } else {
-        log('rabbit already connected', options);
-    }
-
-    await Promise.all(rabbitData.queues.map(async (queue: queueType) => {
-        if (queue.middleware !== undefined && !options.prettify) {
+    rabbitData.queues.forEach(queue => {
+        if (!options.prettify && queue.middleware !== undefined) {
             console.log('MTR: ===> error: middleware option cannot work when prettify is false');
+            return;
         }
+    })
 
-        if(!(queue.name in menash.queues)){
-         await menash.declareQueue(queue.name, { durable: true });
-        }
-      
-        log(`successful connection to queue ${queue.name}`, options);
-    }));
+    await initRabbitConn(rabbitData.rabbitURI, options);
+    await initQueues(getQueuesNames(rabbitData.queues));
 
     log(`successful connection to all queues`, options);
     log(`connecting to mongo collection: ${mongoData.collectionName} with connectionString ${mongoData.connectionString} ...`, options);
-    initWatch(mongoData, rabbitData.queues, options);
+    
+    mongoConn = new MongoClient(mongoData.connectionString, {useUnifiedTopology: true});
+    initWatch(mongoData, rabbitData, options);
+}
+
+async function tryReconnectMongo(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
+    let interval = setInterval(async()=> {
+     await mongoConn.connect();
+
+     if (getMongoHealthStatus()) {
+         clearInterval(interval);
+         initWatch(mongoData,rabbitData, options)
+        } 
+    }, 5000);
+}
+
+/**
+ * Get rabbit health status
+ * @returns boolean - true if healthy
+ */
+export function getRabbitHealthStatus(): boolean{
+    return !menash.isClosed && menash.isReady;
+}
+
+/**
+ * Get mongo connection health status
+ * @returns boolean - true if healthy
+ */
+export function getMongoHealthStatus(): boolean {
+    return mongoConn.isConnected();
+}
+
+/**
+ * Creates rabbitmq connection.
+ * @param rabbituri - rabbit uri (string)
+ * @param options - contains the MTROptions.
+ */
+async function initRabbitConn(rabbituri: string, options: MTROptions) {
+    // Initialize rabbit connection if the conn isn't ready yet
+    log(`connecting to rabbitMQ on URI: ${rabbituri} ...`, options);
+
+    if (!menash.isReady) {
+        await menash.connect(rabbituri, (options.retries ? { retries: options.retries } : {}));
+        log(`successful connection to rabbitMQ on URI: ${rabbituri}`, options);
+    } else {
+        log(`rabbit ${rabbituri} already connected`, options);
+    }
+}
+
+/**
+ * Init rabbitmq queues.
+ * @param queues - names of the queues (string)
+ */
+async function initQueues(queues: string[]) {
+    await Promise.all(queues.map(async (queueName) => {
+        if(!(queueName in menash.queues)) {
+            console.log(`declare queue: ${queueName}`);
+            await menash.declareQueue(queueName, { durable: true });
+        }
+    }));
 }
 
 /**
@@ -65,39 +120,49 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
  * @param qName - The name of the queue to publish to.
  * @param options - contains the MTROptions.
  */
-function initWatch(mongoData: MongoDataType, queues: queueType[], options: MTROptions) {
+async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
+    try {
+        // Try to connect to mongoDB
+        await mongoConn.connect();
+    } catch (err) {
+        tryReconnectMongo(mongoData, rabbitData, options);
+    } 
+    
+    // Select DB and Collection
+    const connectionObject: IConnectionStringParameters = csParser.parse(mongoData.connectionString);
+    const db = mongoConn.db(connectionObject.endpoint);
+    const collection = db.collection(mongoData.collectionName);
 
-    mongodb.MongoClient.connect(mongoData.connectionString, { useUnifiedTopology: true}).then(client => {
-        // Select DB and Collection
-        const connectionObject: IConnectionStringParameters = csParser.parse(mongoData.connectionString);
-        const db = client.db(connectionObject.endpoint);
-        const collection = db.collection(mongoData.collectionName);
+    // Define change stream
+    const pipeline = [{ $match: { 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
+    const optionsStream : ChangeStreamOptions = {fullDocument: 'updateLookup'}
+    const changeStream = collection.watch(pipeline, optionsStream);
 
-        // Define change stream
-        const pipeline = [{ $match: { 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
-        const optionsStream : ChangeStreamOptions = {fullDocument: 'updateLookup'}
-        const changeStream = collection.watch(pipeline, optionsStream);
-        // start listen to changes
-        changeStream.on('change', (event: mongodb.ChangeEvent<Object>) => {
-            queues.forEach((queue) => {
-                const formattedData = options.prettify ? 
-                    queue.middleware == undefined? 
-                        defaultMiddleware(prettifyData(event, options), mongoData.collectionName): 
-                        queue.middleware(prettifyData(event, options), mongoData.collectionName)
-                    : event;
-                
-                if (formattedData !== null && formattedData !== undefined) {
-                    if(Array.isArray(formattedData)){
-                        formattedData.forEach(dataContent => menash.send(queue.name, dataContent));
-                    }
-                    else {
-                        menash.send(queue.name, formattedData);
-                    }
+    // start listen to changes
+    changeStream.on('change', (event: mongodb.ChangeEvent<Object>) => {
+        rabbitData.queues.forEach((queue) => {
+            const formattedData = options.prettify ? 
+                queue.middleware == undefined? 
+                    defaultMiddleware(prettifyData(event, options), mongoData.collectionName): 
+                    queue.middleware(prettifyData(event, options), mongoData.collectionName)
+                : event;
+            
+            if (formattedData !== null && formattedData !== undefined) {
+                if(Array.isArray(formattedData)){
+                    formattedData.forEach(dataContent => 
+                        menash.send(queue.name, dataContent));
                 }
-            });
+                else {
+                    menash.send(queue.name, formattedData);
+                }
+            }
         });
-        console.log(`MTR: ===> successful connection to collection: ${mongoData.collectionName}`);
+    }).on('error', async(err) => {
+        console.log(new Date() + ' error: ' + err);
+        tryReconnectMongo(mongoData, rabbitData, options);
     });
+
+    console.log(`MTR: ===> successful connection to collection: ${mongoData.collectionName}`);
 }
 
 /**

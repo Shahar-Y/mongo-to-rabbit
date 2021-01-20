@@ -1,4 +1,4 @@
-# mongo-to-rabbit v3.0
+# mongo-to-rabbit v4.0
 
 ![npm](https://img.shields.io/npm/v/mongo-to-rabbit?color=green)
 ![NPM](https://img.shields.io/npm/l/mongo-to-rabbit)
@@ -20,12 +20,12 @@ Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to Rabbi
 contains 2 fields: 
 | #  | field | type | info |
 |---|---|---|---|
-| 1 | `queueName`  | `string` | the name of the queue to send the information to |
+| 1 | `queues`  | `queueObjectType` | the name of the queue to send the information to and the middlewareFunc|
 | 2 | `rabbitURI `  | `string` | the connection string for the rabbitMQ server |
 
 ### 2- Mongo Data:
 
-contains 3 fields:
+contains 2 fields:
 | #  | field | type | info |
 |---|---|---|---|
 | 1 | `collectionName`  | `string` | the name of the mongo collection you want to listen to |
@@ -38,17 +38,26 @@ contains 3 fields:
 |---|---|---|---|---|
 | 1 | `silent`  | `boolean` | if false, logs connection and changes to the console | `true` |
 | 2 | `prettify`  | `boolean` | if true, will filter the result and send it in a specific format | `true`|
-| 3 | `middleware`  | `(DataObjectType) => (string \| Object \| Buffer)` | will only work with `prettify:true`. A function for manipulating the prettified data received from the listener before sending it to the queue | [identity function](https://en.wikipedia.org/wiki/Identity_function) |
+| 3 | `retries`  | `number` | amount of retries to connect to rabbit | `5`| 
 
+
+
+
+### Types:
+| #  | field | type | info | default |
+|---|---|---|---|---|
+|1| `queueObjectType`| `name: string, middleware?: middlewareFunc`| queue name and the middleware parser
+|2|`middlewareFunc` | `(DataObjectType, collectionName) => (null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with  a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function)
+
+___
 #### Example: 
 ```node
 import watchAndNotify from 'mongo-to-rabbit';
 
 let rabbitData = {
-    queueName: 'myQueueName',
+    queues: [{name:'MyQueueName'}],
     rabbitURI: 'amqp://localhost'
 };
-
 
 let mongoData = {  
     collectionName: 'files',

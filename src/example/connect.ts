@@ -18,7 +18,7 @@ const mongoData1: MongoDataType = {
 const rabbitData1: RabbitDataType = {
 	queues: [
 		{name:'MyQueueName1', middleware: middleware1},
-		{name: 'MyQueueName2' }
+		{name: 'MyQueueName2'}
 	],
 	rabbitURI: 'amqp://localhost'
 };
@@ -27,7 +27,7 @@ const options1: Partial<MTROptions> = {silent: false}
 
 // Second colQCouple
 const mongoData2: MongoDataType = {
-	collectionName: 'files',
+	collectionName: 'permissions',
 	connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
 };
 
