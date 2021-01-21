@@ -54,23 +54,12 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
     log(`connecting to mongo collection: ${mongoData.collectionName} with connectionString ${mongoData.connectionString} ...`, options);
     
     mongoConn = new MongoClient(mongoData.connectionString, {useUnifiedTopology: true});
-    initWatch(mongoData, rabbitData, options);
-}
-
-async function tryReconnectMongo(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
-    let interval = setInterval(async()=> {
-     await mongoConn.connect();
-
-     if (getMongoHealthStatus()) {
-         clearInterval(interval);
-         initWatch(mongoData,rabbitData, options)
-        } 
-    }, 5000);
+    mongoConnection(mongoData, rabbitData, options);
 }
 
 /**
  * Get rabbit health status
- * @returns boolean - true if healthy
+ * @returns boolean - true if rabbit is healthy
  */
 export function getRabbitHealthStatus(): boolean{
     return !menash.isClosed && menash.isReady;
@@ -78,10 +67,34 @@ export function getRabbitHealthStatus(): boolean{
 
 /**
  * Get mongo connection health status
- * @returns boolean - true if healthy
+ * @returns boolean - true if mongo is healthy
  */
 export function getMongoHealthStatus(): boolean {
     return mongoConn.isConnected();
+}
+
+/**
+ * Creates mongodb connection.
+ * @param mongoData  - mongo data - collections and connection uri (MongoDataType)
+ * @param rabbitData - rabbit data (RabbitDataType)
+ * @param options    - contains the MTROptions.
+ */
+async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
+    let isConnectOnce: boolean = false;
+
+    while(!isConnectOnce) {
+        try {
+            log('try connect to mongo', options);
+            await mongoConn.connect();
+
+            log(`successful connection to mongo on connectionString: ${mongoData.connectionString}`, options);
+            isConnectOnce = true;
+            initWatch(mongoData,rabbitData, options);
+        } catch(error) {
+            log('cant connect to mongo', options);
+            await sleep(10000);
+        }
+    }
 }
 
 /**
@@ -103,7 +116,7 @@ async function initRabbitConn(rabbituri: string, options: MTROptions) {
 
 /**
  * Init rabbitmq queues.
- * @param queues - names of the queues (string)
+ * @param queues - names of the queues (string[])
  */
 async function initQueues(queues: string[]) {
     await Promise.all(queues.map(async (queueName) => {
@@ -120,14 +133,7 @@ async function initQueues(queues: string[]) {
  * @param qName - The name of the queue to publish to.
  * @param options - contains the MTROptions.
  */
-async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
-    try {
-        // Try to connect to mongoDB
-        await mongoConn.connect();
-    } catch (err) {
-        tryReconnectMongo(mongoData, rabbitData, options);
-    } 
-    
+async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {    
     // Select DB and Collection
     const connectionObject: IConnectionStringParameters = csParser.parse(mongoData.connectionString);
     const db = mongoConn.db(connectionObject.endpoint);
@@ -158,8 +164,9 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
             }
         });
     }).on('error', async(err) => {
-        console.log(new Date() + ' error: ' + err);
-        tryReconnectMongo(mongoData, rabbitData, options);
+        log(`error in mongo`, options);
+        log(err, options);
+        mongoConnection(mongoData, rabbitData, options);
     });
 
     console.log(`MTR: ===> successful connection to collection: ${mongoData.collectionName}`);
@@ -201,4 +208,8 @@ function prettifyData(data: mongodb.ChangeEvent<Object>, options: MTROptions): D
     }
 
     return dataObject;
+}
+
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
