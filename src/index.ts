@@ -80,16 +80,13 @@ export function getMongoHealthStatus(): boolean {
  * @param options    - contains the MTROptions.
  */
 async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
-    let isConnectOnce: boolean = false;
-
-    while(!isConnectOnce) {
+    while(true) {
         try {
             log('try connect to mongo', options);
             await mongoConn.connect();
-
             log(`successful connection to mongo on connectionString: ${mongoData.connectionString}`, options);
-            isConnectOnce = true;
             initWatch(mongoData,rabbitData, options);
+            break;
         } catch(error) {
             log('cant connect to mongo', options);
             await sleep(10000);
