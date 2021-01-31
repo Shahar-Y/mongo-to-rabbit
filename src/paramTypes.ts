@@ -20,20 +20,20 @@ export type DataObjectType = {
 	};
 }
 
-export type exchangeObjectType = {
-	name: string;
-	type: ExchangeType;
+export type ExchangeObjectType = {
+	name: string,
+	type: ExchangeType,
 	routingKey?: string,
 }
 
 export type QueueObjectType = {
 	name: string,
-	exchange?: exchangeObjectType,
+	exchange?: ExchangeObjectType,
 	middleware?: MiddlewareFuncType, 
 };
 
 export type sendMsgReq = {
-	dest: string | exchangeObjectType;
+	dest: string | ExchangeObjectType;
 	msg: any;
 }
 

@@ -73,7 +73,7 @@ async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataT
             initWatch(mongoData,rabbitData, options);
             break;
         } catch(error) {
-            log(`cant connect to mongo. Retrying in ${reconnectSleepTime}`, options);
+            console.log(`cant connect to mongo. Retrying in ${reconnectSleepTime}`);
             console.log(error);
             await sleep(reconnectSleepTime);
         }
@@ -164,8 +164,8 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
             }
         });
     }).on('error', async(err) => {
-        log(`error in mongo`, options);
-        log(err, options);
+        console.log(`error in mongo`);
+        console.log(err);
         mongoConnection(mongoData, rabbitData, options);
     });
 

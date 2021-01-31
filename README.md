@@ -46,9 +46,10 @@ contains 3 fields:
 ### Types:
 | #  | field | type | info | default |
 |---|---|---|---|---|
-|1| `queueObjectType`| `name: string, middleware?: middlewareFunc`| queue name and the middleware parser | -
-|2|`middlewareFunc` | `(DataObjectType, collectionName) => (null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with  a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function)
-
+|1| `QueueObjectType`| `name: string, middleware?: MiddlewareFuncType exchange?: ExchangeObjectType`| queue name and the middleware parser | -
+|2|`MiddlewareFuncType` | `(DataObjectType, collectionName) => (null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with  a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function)
+|3|`ExchangeObjectType`| `name: string, type: ExchangeType, routingKey?: string` | exchange implementation | -
+|4|`ExchangeType`| `fanout | topic  direct | headers`| different types of exchanges | -
 ___
 #### Example: 
 ```node
