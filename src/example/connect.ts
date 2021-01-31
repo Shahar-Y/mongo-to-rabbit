@@ -32,7 +32,7 @@ const mongoData2: MongoDataType = {
 };
 
 const rabbitData2: RabbitDataType = {
-	queues: [{ name:'Queue3'}],
+	queues: [{ name:'MyQueueName2'}],
 	rabbitURI: 'amqp://localhost'
 };
 

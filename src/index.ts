@@ -4,8 +4,9 @@ import { MongoDataType,
          RabbitDataType,
          DataObjectType,
          MTROptions,
-         middlewareFunc, 
-         queueObjectType} from './paramTypes';
+         MiddlewareFuncType, 
+         QueueObjectType
+        } from './paramTypes';
 import { ConnectionStringParser as CSParser,
          IConnectionStringParameters } from 'connection-string-parser';
 import {menash} from 'menashmq';
@@ -18,8 +19,8 @@ const csParser = new CSParser({
     hosts: []
 });
 
-const defaultMiddleware: middlewareFunc = (data: DataObjectType,collection: string ) => {
-    return {data, collection};
+const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => {
+    return {data};
 }
 
 const defaultOptions: MTROptions = {
@@ -27,7 +28,7 @@ const defaultOptions: MTROptions = {
     prettify: true,
 }
 
-const getQueuesNames = (queues: queueObjectType[]): string[] =>{
+const getQueuesNames = (queues: QueueObjectType[]): string[] =>{
     return [...queues.map(queue => queue.name)]
 }
 
@@ -48,7 +49,7 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
     })
 
     await initRabbitConn(rabbitData.rabbitURI, options);
-    await initQueues(getQueuesNames(rabbitData.queues));
+    await initQueues(rabbitData.queues);
 
     log(`successful connection to all queues`, options);
     log(`connecting to mongo collection: ${mongoData.collectionName} with connectionString ${mongoData.connectionString} ...`, options);
@@ -57,29 +58,13 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
     mongoConnection(mongoData, rabbitData, options);
 }
 
-/**
- * Get rabbit health status
- * @returns boolean - true if rabbit is healthy
- */
-export function getRabbitHealthStatus(): boolean{
-    return !menash.isClosed && menash.isReady;
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Get mongo connection health status
- * @returns boolean - true if mongo is healthy
- */
-export function getMongoHealthStatus(): boolean {
-    return mongoConn.isConnected();
-}
-
-/**
- * Creates mongodb connection.
- * @param mongoData  - mongo data - collections and connection uri (MongoDataType)
- * @param rabbitData - rabbit data (RabbitDataType)
- * @param options    - contains the MTROptions.
- */
 async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
+    const reconnectSleepTime: number = 1000;
+
     while(true) {
         try {
             log('try connect to mongo', options);
@@ -88,10 +73,27 @@ async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataT
             initWatch(mongoData,rabbitData, options);
             break;
         } catch(error) {
-            log('cant connect to mongo', options);
-            await sleep(10000);
+            log(`cant connect to mongo. Retrying in ${reconnectSleepTime}`, options);
+            console.log(error);
+            await sleep(reconnectSleepTime);
         }
     }
+}
+
+/**
+ * Get rabbit health status
+ * @returns boolean - true if healthy
+ */
+export function getRabbitHealthStatus(): boolean{
+    return !menash.isClosed && menash.isReady;
+}
+
+/**
+ * Get mongo connection health status
+ * @returns boolean - true if healthy
+ */
+export function getMongoHealthStatus(): boolean {
+    return mongoConn.isConnected();
 }
 
 /**
@@ -103,8 +105,8 @@ async function initRabbitConn(rabbituri: string, options: MTROptions) {
     // Initialize rabbit connection if the conn isn't ready yet
     log(`connecting to rabbitMQ on URI: ${rabbituri} ...`, options);
 
-    if (!menash.isReady) {
-        await menash.connect(rabbituri, (options.retries ? { retries: options.retries } : {}));
+    if (!menash.isReady) {  
+        await menash.connect(rabbituri, { retries: options.rabbitRetries });
         log(`successful connection to rabbitMQ on URI: ${rabbituri}`, options);
     } else {
         log(`rabbit ${rabbituri} already connected`, options);
@@ -112,14 +114,19 @@ async function initRabbitConn(rabbituri: string, options: MTROptions) {
 }
 
 /**
- * Init rabbitmq queues.
- * @param queues - names of the queues (string[])
+ * Init rabbitmq queues (queues and exchanges).
+ * @param queues - names of the queues (string)
  */
-async function initQueues(queues: string[]) {
-    await Promise.all(queues.map(async (queueName) => {
-        if(!(queueName in menash.queues)) {
-            console.log(`declare queue: ${queueName}`);
-            await menash.declareQueue(queueName, { durable: true });
+async function initQueues(queues: QueueObjectType[]) {
+    await Promise.all(queues.map(async (queue) => {
+        if(!(queue.name in menash.queues)) {
+            console.log(`declare queue: ${queue}`);
+            const queuedeclared = await menash.declareQueue(queue.name, { durable: true });
+
+            if(queue.exchange) {
+                const exchange = await menash.declareExchange(queue.exchange.name, queue.exchange.type);
+                await menash.bind(exchange, queuedeclared, queue.exchange.routingKey);
+            }
         }
     }));
 }
@@ -137,7 +144,7 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
     const collection = db.collection(mongoData.collectionName);
 
     // Define change stream
-    const pipeline = [{ $match: { 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
+    const pipeline = [{ $match: {'documentKey._id': 'fullDocument.fileID', 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
     const optionsStream : ChangeStreamOptions = {fullDocument: 'updateLookup'}
     const changeStream = collection.watch(pipeline, optionsStream);
 
@@ -151,13 +158,9 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
                 : event;
             
             if (formattedData !== null && formattedData !== undefined) {
-                if(Array.isArray(formattedData)){
-                    formattedData.forEach(dataContent => 
-                        menash.send(queue.name, dataContent));
-                }
-                else {
-                    menash.send(queue.name, formattedData);
-                }
+                (Array.isArray(formattedData))? 
+                    formattedData.forEach(dataContent => sendMsg(queue, dataContent)): 
+                    sendMsg(queue, formattedData);
             }
         });
     }).on('error', async(err) => {
@@ -167,6 +170,12 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
     });
 
     console.log(`MTR: ===> successful connection to collection: ${mongoData.collectionName}`);
+}
+
+export function sendMsg(queue: QueueObjectType, msg: any) {    
+    (queue.exchange)? 
+        menash.send(queue.exchange.name, msg, {}, queue.exchange.routingKey):
+        menash.send(queue.name, msg);
 }
 
 /**
@@ -205,8 +214,4 @@ function prettifyData(data: mongodb.ChangeEvent<Object>, options: MTROptions): D
     }
 
     return dataObject;
-}
-
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }

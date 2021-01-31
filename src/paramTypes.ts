@@ -1,3 +1,5 @@
+import { ExchangeType } from 'menashmq';
+
 export type MongoDataType = {
 	collectionName: string;
 	connectionString: string;
@@ -5,7 +7,7 @@ export type MongoDataType = {
 
 export type RabbitDataType = {
 	rabbitURI: string,
-	queues: queueObjectType[];
+	queues: QueueObjectType[];
 }
 
 export type DataObjectType = {
@@ -18,18 +20,30 @@ export type DataObjectType = {
 	};
 }
 
-export type queueObjectType = {
+export type exchangeObjectType = {
+	name: string;
+	type: ExchangeType;
+	routingKey?: string,
+}
+
+export type QueueObjectType = {
 	name: string,
-	middleware?: middlewareFunc, 
+	exchange?: exchangeObjectType,
+	middleware?: MiddlewareFuncType, 
 };
 
-export type middlewareFunc = 
-	(dataObject: DataObjectType, collection: string) => 
+export type sendMsgReq = {
+	dest: string | exchangeObjectType;
+	msg: any;
+}
+
+export type MiddlewareFuncType = 
+	(dataObject: DataObjectType, collection?: string) => 
 	(null| string | Object | Buffer |string[] | Object[] 
 		| Buffer[] | undefined);
 
 export type MTROptions = {
 	silent: boolean;
 	prettify: boolean;
-	retries?: number;
+	rabbitRetries?: number;
 }

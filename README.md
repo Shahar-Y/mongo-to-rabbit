@@ -38,7 +38,7 @@ contains 3 fields:
 |---|---|---|---|---|
 | 1 | `silent`  | `boolean` | if false, logs connection and changes to the console | `true` |
 | 2 | `prettify`  | `boolean` | if true, will filter the result and send it in a specific format | `true`|
-| 3 | `retries`  | `number` | amount of retries to connect to rabbit | `5`| 
+| 3 | `rabbitRetries`  | `number` | amount of retries to connect to rabbit | `5`| 
 
 
 
@@ -46,7 +46,7 @@ contains 3 fields:
 ### Types:
 | #  | field | type | info | default |
 |---|---|---|---|---|
-|1| `queueObjectType`| `name: string, middleware?: middlewareFunc`| queue name and the middleware parser
+|1| `queueObjectType`| `name: string, middleware?: middlewareFunc`| queue name and the middleware parser | -
 |2|`middlewareFunc` | `(DataObjectType, collectionName) => (null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with  a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function)
 
 ___
