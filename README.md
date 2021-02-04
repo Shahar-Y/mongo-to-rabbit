@@ -20,7 +20,7 @@ Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to Rabbi
 contains 2 fields: 
 | #  | field | type | info |
 |---|---|---|---|
-| 1 | `queues`  | `queueObjectType` | the name of the queue to send the information to and the middlewareFunc|
+| 1 | `queues`  | `QueueObjectType` | array of destination queues names to send the information to and the middlewareFunc|
 | 2 | `rabbitURI `  | `string` | the connection string for the rabbitMQ server |
 
 ### 2- Mongo Data:
@@ -46,10 +46,10 @@ contains 3 fields:
 ### Types:
 | #  | field | type | info | default |
 |---|---|---|---|---|
-|1| `QueueObjectType`| `name: string, middleware?: MiddlewareFuncType exchange?: ExchangeObjectType`| queue name and the middleware parser | -
+|1| `QueueObjectType`| `name: string, middleware?: MiddlewareFuncType exchange?: ExchangeObjectType`| queue name, middleware parser and exchange| -
 |2|`MiddlewareFuncType` | `(DataObjectType, collectionName) => (null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with  a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function)
 |3|`ExchangeObjectType`| `name: string, type: ExchangeType, routingKey?: string` | exchange implementation | -
-|4|`ExchangeType`| `fanout | topic  direct | headers`| different types of exchanges | -
+|4|`ExchangeType`| `fanout | topic  direct | headers`| different types of exchanges, read more at - [exchange types](https://www.rabbitmq.com/tutorials/amqp-concepts.html)| -
 ___
 #### Example: 
 ```node

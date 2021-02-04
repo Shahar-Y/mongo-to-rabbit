@@ -1,11 +1,11 @@
 
 import watchAndNotify from '../index';
-import { MongoDataType, MTROptions, RabbitDataType, DataObjectType, middlewareFunc } from '../paramTypes';
+import { MongoDataType, MTROptions, RabbitDataType, DataObjectType, MiddlewareFuncType } from '../paramTypes';
 
 // Create two colQCouples and connect to two different queues.
 
 // First colQCouple
-const middleware1: middlewareFunc = (x: DataObjectType) => {
+const middleware1: MiddlewareFuncType = (x: DataObjectType) => {
 	const x2: DataObjectType = x;
 	x2.operation += '!!!';
 	return x;

@@ -1,47 +1,33 @@
 import mongodb from 'mongodb';
+import { menash } from 'menashmq';
+import { ChangeStreamOptions, MongoClient } from 'mongodb';
+import { ConnectionStringParser as CSParser,
+         IConnectionStringParameters } from 'connection-string-parser';
 import log from './utils/logger';
 import { MongoDataType,
          RabbitDataType,
          DataObjectType,
          MTROptions,
          MiddlewareFuncType, 
-         QueueObjectType
-        } from './paramTypes';
-import { ConnectionStringParser as CSParser,
-         IConnectionStringParameters } from 'connection-string-parser';
-import {menash} from 'menashmq';
-import { ChangeStreamOptions } from 'mongodb';
-import { MongoClient } from 'mongodb';
+         QueueObjectType,
+         ExchangeObjectType} from './paramTypes';
 
 let mongoConn: MongoClient;
-const csParser = new CSParser({
-    scheme: 'mongodb',
-    hosts: []
-});
+const csParser = new CSParser({ scheme: 'mongodb', hosts: []});
+const defaultOptions: MTROptions = {silent: true, prettify: true};
 
-const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => {
-    return {data};
-}
-
-const defaultOptions: MTROptions = {
-    silent: true,
-    prettify: true,
-}
-
-const getQueuesNames = (queues: QueueObjectType[]): string[] =>{
-    return [...queues.map(queue => queue.name)]
-}
+const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => {return data}
 
 /**
  * The main function of the package.
  * Creates the listener to mongo and connects it to rabbit.
- * @param mongoData - Information related to mongo.
- * @param rabbitData - Information related to rabbitMQ.
- * @param opts - an optional parameter. defaults to 'defaultOptions'.
+ * @param {MongoDataType}   mongoData - Information related to mongo.
+ * @param {RabbitDataType}  rabbitData - Information related to rabbitMQ.
+ * @param {MTROptions}      opts - an optional parameter. defaults to 'defaultOptions'.
  */
 export default async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType, opts?: Partial<MTROptions>): Promise<void> {
     const options: MTROptions = { ...defaultOptions, ...opts };
-    rabbitData.queues.forEach(queue => {
+    rabbitData.queues?.forEach(queue => {
         if (!options.prettify && queue.middleware !== undefined) {
             console.log('MTR: ===> error: middleware option cannot work when prettify is false');
             return;
@@ -58,10 +44,33 @@ export default async function watchAndNotify(mongoData: MongoDataType, rabbitDat
     mongoConnection(mongoData, rabbitData, options);
 }
 
+
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Get rabbit health status
+ * @returns {boolean} - true if healthy
+ */
+export function getRabbitHealthStatus(): boolean{
+    return !menash.isClosed && menash.isReady;
+}
+
+/**
+ * Get mongo connection health status
+ * @returns {boolean} - true if healthy
+ */
+export function getMongoHealthStatus(): boolean {
+    return mongoConn.isConnected();
+}
+
+/**
+ * Start mongo connection
+ * @param {MongoDataType}   mongoData   - mongo uri and collection name
+ * @param {RabbitDataType}  rabbitData  - rabbit data
+ * @param {MTROptions}      options     - mongo to rabbit options
+ */
 async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {
     const reconnectSleepTime: number = 1000;
 
@@ -81,25 +90,9 @@ async function mongoConnection(mongoData: MongoDataType, rabbitData: RabbitDataT
 }
 
 /**
- * Get rabbit health status
- * @returns boolean - true if healthy
- */
-export function getRabbitHealthStatus(): boolean{
-    return !menash.isClosed && menash.isReady;
-}
-
-/**
- * Get mongo connection health status
- * @returns boolean - true if healthy
- */
-export function getMongoHealthStatus(): boolean {
-    return mongoConn.isConnected();
-}
-
-/**
  * Creates rabbitmq connection.
- * @param rabbituri - rabbit uri (string)
- * @param options - contains the MTROptions.
+ * @param {string}      rabbituri   - rabbit uri 
+ * @param {MTROptions}  options     - contains the MTROptions.
  */
 async function initRabbitConn(rabbituri: string, options: MTROptions) {
     // Initialize rabbit connection if the conn isn't ready yet
@@ -114,28 +107,29 @@ async function initRabbitConn(rabbituri: string, options: MTROptions) {
 }
 
 /**
- * Init rabbitmq queues (queues and exchanges).
- * @param queues - names of the queues (string)
+ * Init rabbitmq queues and exchanges binding
+ * @param {QueueObjectType[]} queues - queues array
  */
 async function initQueues(queues: QueueObjectType[]) {
     await Promise.all(queues.map(async (queue) => {
         if(!(queue.name in menash.queues)) {
-            console.log(`declare queue: ${queue}`);
+            console.log(`declare queue: ${queue.name}`);
             const queuedeclared = await menash.declareQueue(queue.name, { durable: true });
 
             if(queue.exchange) {
-                const exchange = await menash.declareExchange(queue.exchange.name, queue.exchange.type);
-                await menash.bind(exchange, queuedeclared, queue.exchange.routingKey);
+                if(!(queue.exchange.name in menash.exchanges)) await menash.declareExchange(queue.exchange.name, queue.exchange.type);
+                await menash.bind(queue.exchange.name, queuedeclared, queue.exchange.routingKey);
             }
         }
     }));
 }
 
+
 /**
  * Initializes the mongo watcher, given the mongo data.
- * @param mongoData - the data about mongo for the connection.
- * @param qName - The name of the queue to publish to.
- * @param options - contains the MTROptions.
+ * @param {MongoDataType}   mongoData   - the data about mongo for the connection.
+ * @param {RabbitDataType}  rabbitData  - the data about rabbit connection
+ * @param {MTROptions}      options     - contains the MTROptions.
  */
 async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions) {    
     // Select DB and Collection
@@ -144,25 +138,13 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
     const collection = db.collection(mongoData.collectionName);
 
     // Define change stream
-    const pipeline = [{ $match: {'documentKey._id': 'fullDocument.fileID', 'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
+    const pipeline = [{ $match: {'ns.db': connectionObject.endpoint, 'ns.coll': mongoData.collectionName } }];
     const optionsStream : ChangeStreamOptions = {fullDocument: 'updateLookup'}
     const changeStream = collection.watch(pipeline, optionsStream);
 
     // start listen to changes
     changeStream.on('change', (event: mongodb.ChangeEvent<Object>) => {
-        rabbitData.queues.forEach((queue) => {
-            const formattedData = options.prettify ? 
-                queue.middleware == undefined? 
-                    defaultMiddleware(prettifyData(event, options), mongoData.collectionName): 
-                    queue.middleware(prettifyData(event, options), mongoData.collectionName)
-                : event;
-            
-            if (formattedData !== null && formattedData !== undefined) {
-                (Array.isArray(formattedData))? 
-                    formattedData.forEach(dataContent => sendMsg(queue, dataContent)): 
-                    sendMsg(queue, formattedData);
-            }
-        });
+        rabbitData.queues.forEach(queue => formatMsg(queue, options, event, mongoData));
     }).on('error', async(err) => {
         console.log(`error in mongo`);
         console.log(err);
@@ -172,7 +154,38 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
     console.log(`MTR: ===> successful connection to collection: ${mongoData.collectionName}`);
 }
 
-export function sendMsg(queue: QueueObjectType, msg: any) {    
+
+/**
+ * formatMsg - parse msg and send it to queue
+ * @param {QueueObjectType}             queue     - queue object 
+ * @param {MTROptions}                  options   - options for package
+ * @param {mongodb.ChangeEvent<Object>} event     - mongo change event
+ * @param {MongoDataType}               mongoData - mongoData options
+ */
+function formatMsg(
+    queue: QueueObjectType,
+    options: MTROptions,
+    event: mongodb.ChangeEvent<Object>,
+    mongoData: MongoDataType) {
+    const formattedData = options.prettify ? 
+        queue.middleware == undefined? 
+            defaultMiddleware(prettifyData(event, options), mongoData.collectionName): 
+            queue.middleware(prettifyData(event, options), mongoData.collectionName)
+        : event;
+    
+    if (formattedData !== null && formattedData !== undefined) {
+        (Array.isArray(formattedData))? 
+            formattedData.forEach(dataContent => sendMsg(queue, dataContent)): 
+            sendMsg(queue, formattedData);
+    }
+}
+/**
+ * sendMsg function to queue - by exchange or direct queue
+ * @param {QueueObjectType} queue   - queue object 
+ * @param {any}             msg     - formatted msg
+ */
+export function sendMsg(queue: QueueObjectType, msg: any) {   
+    console.log('sending msg'); 
     (queue.exchange)? 
         menash.send(queue.exchange.name, msg, {}, queue.exchange.routingKey):
         menash.send(queue.name, msg);
@@ -180,7 +193,8 @@ export function sendMsg(queue: QueueObjectType, msg: any) {
 
 /**
  * prettifyData formats the data sent from the change event on mongo.
- * @param data - the information sent from mongo about the change.
+ * @param {mongodb.ChangeEvent<Object>} data    - the information sent from mongo about the change.
+ * @param {MTROptions}                  options - options for package
  * @returns an object of type DataObjectType.
  */
 function prettifyData(data: mongodb.ChangeEvent<Object>, options: MTROptions): DataObjectType {

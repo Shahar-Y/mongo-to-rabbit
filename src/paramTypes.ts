@@ -32,11 +32,6 @@ export type QueueObjectType = {
 	middleware?: MiddlewareFuncType, 
 };
 
-export type sendMsgReq = {
-	dest: string | ExchangeObjectType;
-	msg: any;
-}
-
 export type MiddlewareFuncType = 
 	(dataObject: DataObjectType, collection?: string) => 
 	(null| string | Object | Buffer |string[] | Object[] 
