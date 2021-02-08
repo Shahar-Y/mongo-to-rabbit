@@ -9,8 +9,8 @@ import { MongoDataType,
          DataObjectType,
          MTROptions,
          MiddlewareFuncType, 
-         QueueObjectType,
-         ExchangeObjectType} from './paramTypes';
+         QueueObjectType
+        } from './paramTypes';
 
 let mongoConn: MongoClient;
 const csParser = new CSParser({ scheme: 'mongodb', hosts: []});
@@ -27,7 +27,7 @@ const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => {return 
  */
 export default async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType, opts?: Partial<MTROptions>): Promise<void> {
     const options: MTROptions = { ...defaultOptions, ...opts };
-    rabbitData.queues?.forEach(queue => {
+    rabbitData.queues.forEach(queue => {
         if (!options.prettify && queue.middleware !== undefined) {
             console.log('MTR: ===> error: middleware option cannot work when prettify is false');
             return;
@@ -51,7 +51,7 @@ function sleep(ms: number) {
 
 /**
  * Get rabbit health status
- * @returns {boolean} - true if healthy
+ * @returns {boolean} isHealthy - true if healthy
  */
 export function getRabbitHealthStatus(): boolean{
     return !menash.isClosed && menash.isReady;
@@ -59,7 +59,7 @@ export function getRabbitHealthStatus(): boolean{
 
 /**
  * Get mongo connection health status
- * @returns {boolean} - true if healthy
+ * @returns {boolean} isHealthy - true if healthy
  */
 export function getMongoHealthStatus(): boolean {
     return mongoConn.isConnected();
@@ -144,6 +144,7 @@ async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, o
 
     // start listen to changes
     changeStream.on('change', (event: mongodb.ChangeEvent<Object>) => {
+        log(`got mongo change event:  ${event.operationType} in collection:${mongoData.collectionName}`, options);
         rabbitData.queues.forEach(queue => formatMsg(queue, options, event, mongoData));
     }).on('error', async(err) => {
         console.log(`error in mongo`);
@@ -184,8 +185,8 @@ function formatMsg(
  * @param {QueueObjectType} queue   - queue object 
  * @param {any}             msg     - formatted msg
  */
-export function sendMsg(queue: QueueObjectType, msg: any) {   
-    console.log('sending msg'); 
+export function sendMsg(queue: QueueObjectType, msg: any) {
+    console.log(`sending msg to: ${queue.exchange? queue.exchange.name: queue.name}`, msg); 
     (queue.exchange)? 
         menash.send(queue.exchange.name, msg, {}, queue.exchange.routingKey):
         menash.send(queue.name, msg);
