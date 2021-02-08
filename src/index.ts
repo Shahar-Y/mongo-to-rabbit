@@ -186,7 +186,6 @@ function formatMsg(
  * @param {any}             msg     - formatted msg
  */
 export function sendMsg(queue: QueueObjectType, msg: any) {
-    console.log(`sending msg to: ${queue.exchange? queue.exchange.name: queue.name}`, msg); 
     (queue.exchange)? 
         menash.send(queue.exchange.name, msg, {}, queue.exchange.routingKey):
         menash.send(queue.name, msg);
