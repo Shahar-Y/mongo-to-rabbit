@@ -3,14 +3,7 @@ import log from './utils/logger';
 import { menash } from 'menashmq';
 import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
 import { changeStreamTrackerModel } from './changeStreamModel';
-import {
-  MongoDataType,
-  RabbitDataType,
-  DataObjectType,
-  MTROptions,
-  MiddlewareFuncType,
-  QueueObjectType,
-} from './paramTypes';
+import { MongoDataType, RabbitDataType, DataObjectType, MTROptions, MiddlewareFuncType, QueueObjectType } from './paramTypes';
 
 let mongoConn: MongoClient;
 const millisecondConvertNumber: number = 1000;
@@ -30,11 +23,7 @@ const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => {
  * @param {RabbitDataType}  rabbitData - Information related to rabbitMQ.
  * @param {MTROptions}      opts - an optional parameter. defaults to 'defaultOptions'.
  */
-export default async function watchAndNotify(
-  mongoData: MongoDataType,
-  rabbitData: RabbitDataType,
-  opts?: Partial<MTROptions>
-): Promise<void> {
+export default async function watchAndNotify(mongoData: MongoDataType, rabbitData: RabbitDataType, opts?: Partial<MTROptions>): Promise<void> {
   const options: MTROptions = { ...defaultOptions, ...opts };
   rabbitData.queues.forEach((queue) => {
     if (!options.prettify && queue.middleware !== undefined) {
@@ -47,10 +36,7 @@ export default async function watchAndNotify(
   await initQueues(rabbitData.queues);
 
   log(`successful connection to all queues`, options);
-  log(
-    `connecting to mongo collection: ${mongoData.collectionName} with connectionString ${mongoData.connectionString} ...`,
-    options
-  );
+  log(`connecting to mongo collection: ${mongoData.collectionName} with connectionString ${mongoData.connectionString} ...`, options);
 
   mongoConn = new MongoClient(mongoData.connectionString, { useUnifiedTopology: true });
   mongoConnection(mongoData, rabbitData, options);
@@ -131,8 +117,7 @@ async function initQueues(queues: QueueObjectType[]) {
         const queuedeclared = await menash.declareQueue(queue.name, { durable: true });
 
         if (queue.exchange) {
-          if (!(queue.exchange.name in menash.exchanges))
-            await menash.declareExchange(queue.exchange.name, queue.exchange.type);
+          if (!(queue.exchange.name in menash.exchanges)) await menash.declareExchange(queue.exchange.name, queue.exchange.type);
           await menash.bind(queue.exchange.name, queuedeclared, queue.exchange.routingKey);
         }
       }
@@ -159,12 +144,7 @@ async function initiateChangeStreamStartTime(collectionName: string) {
  * @param {MTROptions}      options     - contains the MTROptions.
  * @param {Timestamp}       startTime   - optional starttime listener
  */
-async function initWatch(
-  mongoData: MongoDataType,
-  rabbitData: RabbitDataType,
-  options: MTROptions,
-  startTime?: Timestamp
-) {
+async function initWatch(mongoData: MongoDataType, rabbitData: RabbitDataType, options: MTROptions, startTime?: Timestamp) {
   // Select DB and Collection
   const connectionObject: IConnectionStringParameters = csParser.parse(mongoData.connectionString);
   const db = mongoConn.db(connectionObject.endpoint);
@@ -214,12 +194,7 @@ async function initWatch(
  * @param {mongodb.ChangeEvent<Object>} event     - mongo change event
  * @param {MongoDataType}               mongoData - mongoData options
  */
-function formatMsg(
-  queue: QueueObjectType,
-  options: MTROptions,
-  event: mongodb.ChangeEvent<Object>,
-  mongoData: MongoDataType
-) {
+function formatMsg(queue: QueueObjectType, options: MTROptions, event: mongodb.ChangeEvent<Object>, mongoData: MongoDataType) {
   const formattedData = options.prettify
     ? queue.middleware == undefined
       ? defaultMiddleware(prettifyData(event, options), mongoData.collectionName)
@@ -227,9 +202,7 @@ function formatMsg(
     : event;
 
   if (formattedData !== null && formattedData !== undefined) {
-    Array.isArray(formattedData)
-      ? formattedData.forEach((dataContent) => sendMsg(queue, dataContent))
-      : sendMsg(queue, formattedData);
+    Array.isArray(formattedData) ? formattedData.forEach((dataContent) => sendMsg(queue, dataContent)) : sendMsg(queue, formattedData);
   }
 }
 /**
