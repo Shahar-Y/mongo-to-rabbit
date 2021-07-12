@@ -1,44 +1,46 @@
 import { ExchangeType } from 'menashmq';
 
-export type MongoDataType = {
-	collectionName: string;
-	connectionString: string;
-};
-
 export type RabbitDataType = {
-	rabbitURI: string,
-	queues: QueueObjectType[];
-}
-
-export type DataObjectType = {
-	id: string;
-	operation: string;
-	fullDocument: object;
-	updateDescription: {
-		updatedFields: object;
-		removedFields: string[];
-	};
-}
-
-export type ExchangeObjectType = {
-	name: string,
-	type: ExchangeType,
-	routingKey?: string,
-}
-
-export type QueueObjectType = {
-	name: string,
-	exchange?: ExchangeObjectType,
-	middleware?: MiddlewareFuncType, 
+  queues: QueueObjectType[];
+  rabbitURI: string;
+  rabbitRetries?: number;
+  healthCheckInterval?: number;
 };
 
-export type MiddlewareFuncType = 
-	(dataObject: DataObjectType, collection?: string) => 
-	(null| string | Object | Buffer |string[] | Object[] 
-		| Buffer[] | undefined);
+export type MongoDataType = {
+  collectionName: string;
+  connectionString: string;
+  healthCheckInterval?: number;
+};
 
 export type MTROptions = {
-	silent: boolean;
-	prettify: boolean;
-	rabbitRetries?: number;
-}
+  silent: boolean;
+  prettify: boolean;
+};
+
+export type DataObjectType = {
+  id: string;
+  operation: string;
+  fullDocument: object;
+  updateDescription: {
+    updatedFields: object;
+    removedFields: string[];
+  };
+};
+
+export type ExchangeObjectType = {
+  name: string;
+  type: ExchangeType;
+  routingKey?: string;
+};
+
+export type QueueObjectType = {
+  name: string;
+  exchange?: ExchangeObjectType;
+  middleware?: MiddlewareFuncType;
+};
+
+export type MiddlewareFuncType = (
+  dataObject: DataObjectType,
+  collection?: string
+) => null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined;
