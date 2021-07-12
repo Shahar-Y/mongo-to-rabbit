@@ -1,4 +1,3 @@
-
 import * as amqp from 'amqplib/callback_api';
 
 connectReceiver('R1', 'MyQueueName1');
