@@ -69,7 +69,7 @@ export async function sendMsg(
     console.log(errMsg);
     const errorDoc: IError = { formattedMsg: msg, destQueue: queue, error: err };
     errorModel.create(errorDoc, async (err: any) => {
-      if (err) console.log('err in create error msg doc', errorDoc, err);
+      err ? console.log('err in create error msg doc', errorDoc, err) : console.log('send to rabbit error');
     });
   });
 }

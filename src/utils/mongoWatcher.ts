@@ -1,11 +1,11 @@
 import mongoose, { ConnectOptions } from 'mongoose';
-import { logger, sleep } from '../index';
 import { formatMsg } from './message';
+import { logger, sleep } from '../index';
+import { collectionModel } from '../models/collectionModel';
 import { ChangeStreamOptions, ChangeEvent, ResumeToken } from 'mongodb';
 import { MongoDataType, MTROptions, RabbitDataType } from '../paramTypes';
 import { changeStreamTrackerModel } from '../models/changeStreamModel';
 import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
-import { collectionModel } from '../models/collectionModel';
 
 // Global variables
 const mongoOptions: ConnectOptions = {
@@ -114,8 +114,10 @@ export class MongoWatcher {
 
           const eventId = (event._id as any)['_data'];
           // Update event stream document
-          changeStreamTrackerModel(this.mongoData.collectionName).create(
+          changeStreamTrackerModel(this.mongoData.collectionName).findOneAndUpdate(
+            { eventId: eventId },
             { eventId: eventId, description: event },
+            { upsert: true },
             async (err: any) => {
               err
                 ? console.log('err in create event time', err)
