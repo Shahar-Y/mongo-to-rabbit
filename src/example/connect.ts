@@ -1,3 +1,4 @@
+
 import { watchAndNotify } from '../index';
 import { MongoDataType, MTROptions, RabbitDataType, DataObjectType, MiddlewareFuncType } from '../paramTypes';
 
