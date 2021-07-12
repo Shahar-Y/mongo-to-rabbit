@@ -1,9 +1,14 @@
 import { MTROptions } from '../paramTypes';
 
-export default function log(message: string | object, options: MTROptions, isObject = false) : void {
-    if(!options.silent && !isObject) {
-        console.log(`MTR: ===> ${message}`)
-    } else if(!options.silent && isObject) {
-        console.log(message) 
-    }
+export default class Logger {
+  options: MTROptions;
+
+  constructor(options: MTROptions) {
+    this.options = options;
+  }
+
+  log(message: string | object, isObject = false): void {
+    if (!(this.options.silent || isObject)) console.log(`MTR: ===> ${message}`);
+    else if (!this.options.silent && isObject) console.log(message);
+  }
 }
