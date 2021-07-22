@@ -1,8 +1,9 @@
-import { menash } from 'menashmq';
-import { logger, sleep } from '../index';
+import { menash, Topology } from 'menashmq';
+import sleep from './general';
+import { logger } from '../index';
 import { MongoWatcher } from './mongoWatcher';
-import { sendFailedMsg } from '../utils/message';
-import { QueueObjectType, RabbitDataType } from '../paramTypes';
+import { sendFailedMsg } from './message';
+import { RabbitDataType } from '../paramTypes';
 
 /**
  * Get rabbit health status
@@ -14,7 +15,8 @@ export function getRabbitHealthStatus(): boolean {
 
 export class Rabbit {
   rabbitData: RabbitDataType;
-  healthCheckInterval: number = 30000;
+
+  healthCheckInterval = 30000;
 
   constructor(rabbitData: RabbitDataType) {
     this.rabbitData = rabbitData;
@@ -24,16 +26,16 @@ export class Rabbit {
   /**
    * Init rabbitmq (connection and queues)
    */
-  async initRabbit() {
-    await this.initConnection(this.rabbitData.rabbitURI);
-    await this.initQueues(this.rabbitData.queues);
+  async initRabbit(): Promise<void> {
+    await this.initConnection();
+    await this.initQueues();
   }
 
   /**
    * Healthcheck for rabbitMQ connection and reconnecting in case of a failer.
    * @param {MongoWatcher} mongoWatcher - mongoWatcher instance
    */
-  async connRabbitHealthChecks(mongoWatcher: MongoWatcher) {
+  async ensureRabbitHealth(mongoWatcher: MongoWatcher): Promise<void> {
     while (true) {
       if (!getRabbitHealthStatus()) {
         // If rabbitMQ unhealthy, close current connection and try reconnect
@@ -49,42 +51,49 @@ export class Rabbit {
 
   /**
    * Creates rabbitmq connection.
-   * @param {string}  rabbituri - rabbit uri
    */
-  async initConnection(rabbituri: string) {
+  async initConnection(): Promise<void> {
     // Initialize rabbit connection if the conn isn't ready yet
-    logger.log(`connecting to rabbitMQ on URI: ${rabbituri} ...`);
+    logger.log(`connecting to rabbitMQ on URI: ${this.rabbitData.rabbitURI} ...`);
 
-    if (!menash.isReady) {
-      await menash.connect(rabbituri, { retries: this.rabbitData.rabbitRetries });
-      logger.log(`successful connection to rabbitMQ on URI: ${rabbituri}`);
+    if (!getRabbitHealthStatus()) {
+      await menash.connect(this.rabbitData.rabbitURI, { retries: this.rabbitData.rabbitRetries });
+      logger.log(`successful connection to rabbitMQ on URI: ${this.rabbitData.rabbitURI}`);
     } else {
-      logger.log(`rabbit ${rabbituri} already connected`);
+      logger.log(`rabbit ${this.rabbitData.rabbitURI} already connected`);
     }
   }
 
   /**
    * Init rabbitmq queues and exchanges binding
-   * @param {QueueObjectType[]} queues - queues array
    */
-  async initQueues(queues: QueueObjectType[]) {
-    await Promise.all(
-      queues.map(async (queue) => {
-        if (!(queue.name in menash.queues)) {
-          logger.log(`declare queue: ${queue.name}`);
-          const queuedeclared = await menash.declareQueue(queue.name, { durable: true });
+  async initQueues(): Promise<void> {
+    // Create new topology
+    const topology: Topology = { queues: [], exchanges: [], bindings: [] };
 
-          if (queue.exchange) {
-            if (!(queue.exchange.name in menash.exchanges)) {
-              await menash.declareExchange(queue.exchange.name, queue.exchange.type);
-            }
+    const { queues } = this.rabbitData;
+    queues.map((queue) => {
+      // If queue not exists, create it
+      if (!(queue.name in menash.queues)) {
+        topology.queues?.push({ name: queue.name, options: { durable: true } });
 
-            if (menash.bindings.bindings.length < 1) {
-              await menash.bind(queue.exchange.name, queuedeclared, queue.exchange.routingKey);
-            }
+        // If exchange is set, create exchange
+        if (queue.exchange) {
+          if (!(queue.exchange.name in menash.exchanges))
+            topology.exchanges?.push({ name: queue.exchange.name, type: queue.exchange.type });
+
+          // If queue is bound to an exchange, bind it
+          if (menash.bindings.bindings.length < 1) {
+            topology.bindings?.push({
+              source: queue.exchange.name,
+              destination: queue.name,
+              pattern: queue.exchange.routingKey,
+            });
           }
         }
-      })
-    );
+      }
+    });
+
+    await menash.declareTopology(topology);
   }
 }

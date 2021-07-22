@@ -1,11 +1,13 @@
 import mongoose, { ConnectOptions } from 'mongoose';
-import { formatMsg } from './message';
-import { logger, sleep } from '../index';
-import { collectionModel } from '../models/collectionModel';
 import { ChangeStreamOptions, ChangeEvent, ResumeToken } from 'mongodb';
-import { MongoDataType, MTROptions, RabbitDataType } from '../paramTypes';
-import { changeStreamTrackerModel } from '../models/changeStreamModel';
 import { ConnectionStringParser as CSParser, IConnectionStringParameters } from 'connection-string-parser';
+import sleep from './general';
+import changeStreamTrackerModel from '../models/changeStreamModel';
+import collectionModel from '../models/collectionModel';
+import { logger } from '../index';
+import { formatAndSendMsg } from './message';
+import { MongoDataType, MTROptions, RabbitDataType } from '../paramTypes';
+import { criticalLog } from './logger';
 
 // Global variables
 const mongoOptions: ConnectOptions = {
@@ -26,9 +28,12 @@ export function getMongoHealthStatus(): boolean {
 
 export class MongoWatcher {
   mongoData: MongoDataType;
+
   rabbitData: RabbitDataType;
+
   options: MTROptions;
-  healthCheckInterval: number = 30000;
+
+  healthCheckInterval = 30000;
 
   /**
    * Creates MongoWatcher instance
@@ -46,7 +51,7 @@ export class MongoWatcher {
   /**
    * Starts mongo connection
    */
-  async mongoConnection() {
+  async mongoConnection(): Promise<void> {
     while (true) {
       try {
         logger.log(
@@ -58,8 +63,8 @@ export class MongoWatcher {
         this.initWatch();
         break;
       } catch (error) {
-        console.log(`can't connect to mongo. Retrying in ${this.healthCheckInterval}ms`);
-        console.log(error);
+        criticalLog(`can't connect to mongo. Retrying in ${this.healthCheckInterval}ms`);
+        criticalLog(error);
 
         await sleep(this.healthCheckInterval);
       }
@@ -68,11 +73,12 @@ export class MongoWatcher {
 
   /**
    * Initiate collection watcher change stream from last event id. if none found, returns undefiend
-   * @param {String} collectionName - collection name that the mongo watches
    */
-  async initiateChangeStreamStartTime(collectionName: string) {
+  async initiateChangeStreamStartTime(): Promise<any> {
     // Get the last event
-    const latestEvent: any = await changeStreamTrackerModel(collectionName).findOne({}).sort({ createdAt: -1 });
+    const latestEvent: any = await changeStreamTrackerModel(this.mongoData.collectionName)
+      .findOne({})
+      .sort({ createdAt: -1 });
     const latestEventId = latestEvent && latestEvent.eventId;
 
     return latestEventId;
@@ -81,9 +87,9 @@ export class MongoWatcher {
   /**
    * Initializes the mongo watcher, given the mongo data.
    */
-  async initWatch() {
+  async initWatch(): Promise<void> {
     // Get the last event id that successfully sent to rabbit
-    const lastEventId = await this.initiateChangeStreamStartTime(this.mongoData.collectionName);
+    const lastEventId = await this.initiateChangeStreamStartTime();
 
     // Select DB and Collection
     const connectionObject: IConnectionStringParameters = csParser.parse(this.mongoData.connectionString);
@@ -95,7 +101,7 @@ export class MongoWatcher {
 
     if (lastEventId) {
       const startAfterToken: ResumeToken = {};
-      (startAfterToken as any)['_data'] = lastEventId;
+      (startAfterToken as any)._data = lastEventId;
       optionsStream.startAfter = startAfterToken;
     }
 
@@ -109,30 +115,38 @@ export class MongoWatcher {
         try {
           // Try send msg to all queues
           await Promise.all(
-            this.rabbitData.queues.map(async (queue) => await formatMsg(queue, this.options, event, this.mongoData))
+            // eslint-disable-next-line no-return-await
+            this.rabbitData.queues.map(
+              async (queue) => await formatAndSendMsg(queue, this.options, event, this.mongoData)
+            )
           );
 
-          const eventId = (event._id as any)['_data'];
+          const eventId = (event._id as any)._data;
           // Update event stream document
           changeStreamTrackerModel(this.mongoData.collectionName).findOneAndUpdate(
-            { eventId: eventId },
-            { eventId: eventId, description: event },
+            { eventId },
+            { eventId, description: event },
             { upsert: true },
             async (err: any) => {
-              err
-                ? console.log('err in create event time', err)
-                : await changeStreamTrackerModel(this.mongoData.collectionName).deleteMany({
-                    eventId: { $ne: eventId },
-                  });
+              if (err) criticalLog(`err in create event time ${err}`);
+              else {
+                try {
+                  await changeStreamTrackerModel(this.mongoData.collectionName);
+                } catch (error) {
+                  criticalLog(
+                    `cant remove before events in collection ${this.mongoData.collectionName}, err: ${error}`
+                  );
+                }
+              }
             }
           );
         } catch (error) {
-          console.log('something went wrong in rabbit send msg', error);
+          criticalLog(`something went wrong in rabbit send msg ${error}`);
         }
       })
       .on('error', async (err: any) => {
-        console.log(`error in mongo`);
-        console.log(err);
+        criticalLog('error in mongo');
+        criticalLog(err);
         this.mongoConnection();
       });
 

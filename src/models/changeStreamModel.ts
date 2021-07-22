@@ -14,6 +14,8 @@ const changeStreamSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-export const changeStreamTrackerModel = (collectionName: string) => {
+const changeStreamTrackerModel = (collectionName: string): mongoose.Model<any> => {
   return mongoose.model<ChangeStream & mongoose.Document>(`${collectionName}-events`, changeStreamSchema);
 };
+
+export default changeStreamTrackerModel;
