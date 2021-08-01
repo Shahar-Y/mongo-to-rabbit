@@ -2,12 +2,18 @@ import { ChangeEvent } from 'mongodb';
 import { ExchangeSendProperties, menash, QueueSendProperties } from 'menashmq';
 import { logger } from '../index';
 import { errorModel, IError } from '../models/errorMsgModel';
-import { DataObjectType, MiddlewareFuncType, MongoDataType, MTROptions, QueueObjectType } from '../paramTypes';
+import {
+  DataObjectType,
+  MiddlewareFuncType,
+  MongoDataType,
+  MTROptions,
+  QueueObjectType,
+  ChangeOperation,
+} from '../paramTypes';
 import { criticalLog } from './logger';
 
-const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => {
-  return data;
-};
+const defaultMiddleware: MiddlewareFuncType = (data: DataObjectType) => data;
+
 const sendMsgTimeout = 30000;
 
 /**
@@ -36,7 +42,7 @@ export async function formatAndSendMsg(
 
   if (formattedData) {
     Array.isArray(formattedData)
-      ? await Promise.all(formattedData.map(async (dataContent) => await sendMsg(queue, dataContent, true)))
+      ? await Promise.all(formattedData.map(async (dataContent) => sendMsg(queue, dataContent, true)))
       : await sendMsg(queue, formattedData, true);
   }
 }
@@ -89,32 +95,28 @@ export function prettifyData(data: ChangeEvent<any>): DataObjectType {
   // Create the basic dataObject
   const dataObject: DataObjectType = {
     id: 'null',
-    operation: 'unknown',
+    operation: ChangeOperation.UNKNOWN,
     fullDocument: {},
     updateDescription: { updatedFields: {}, removedFields: [] },
   };
 
-  if (!data) {
-    return dataObject;
-  }
+  if (!data) return dataObject;
 
-  dataObject.operation = data.operationType || 'unknown';
-  if ((<any>data).documentKey) {
-    dataObject.id = (<any>data).documentKey._id;
-  }
+  dataObject.operation = data.operationType || ChangeOperation.UNKNOWN;
+  if ((<any>data).documentKey) dataObject.id = (<any>data).documentKey._id;
 
   switch (dataObject.operation) {
-    case 'insert':
+    case ChangeOperation.INSERT:
       dataObject.fullDocument = (<any>data).fullDocument;
       break;
-    case 'replace':
+    case ChangeOperation.REPLACE:
       dataObject.fullDocument = (<any>data).fullDocument;
       break;
-    case 'update':
+    case ChangeOperation.UPDATE:
       dataObject.fullDocument = (<any>data).fullDocument;
       dataObject.updateDescription = (<any>data).updateDescription;
       break;
-    case 'delete':
+    case ChangeOperation.DELETE:
       break;
     default:
       logger.log(`An unknown operation occurred: ${dataObject.operation}`);

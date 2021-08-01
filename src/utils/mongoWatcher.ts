@@ -115,10 +115,7 @@ export class MongoWatcher {
         try {
           // Try send msg to all queues
           await Promise.all(
-            // eslint-disable-next-line no-return-await
-            this.rabbitData.queues.map(
-              async (queue) => await formatAndSendMsg(queue, this.options, event, this.mongoData)
-            )
+            this.rabbitData.queues.map(async (queue) => formatAndSendMsg(queue, this.options, event, this.mongoData))
           );
 
           const eventId = (event._id as any)._data;

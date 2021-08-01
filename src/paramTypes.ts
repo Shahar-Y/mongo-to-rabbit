@@ -18,6 +18,14 @@ export type MTROptions = {
   prettify: boolean;
 };
 
+export enum ChangeOperation {
+  INSERT = 'insert',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  REPLACE = 'replace',
+  UNKNOWN = 'unknown',
+}
+
 export type DataObjectType = {
   id: string;
   operation: string;

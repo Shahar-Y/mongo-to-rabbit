@@ -13,7 +13,9 @@ export default class Logger {
     this.options = options;
   }
 
-  log(message: string | object, isObject = false): void {
+  log(message: string | object): void {
+    const isObject = !(typeof message === 'string' || message instanceof String);
+
     if (!(this.options.silent || isObject)) console.log(`${prefixLog} ${message}`);
     else if (!this.options.silent && isObject) console.log(message);
   }
