@@ -5,7 +5,7 @@ import { MongoDataType, RabbitDataType, MTROptions } from './paramTypes';
 import { getMongoHealthStatus, MongoWatcher } from './utils/mongoWatcher';
 
 // Default variables
-const defaultOptions: MTROptions = { silent: true, prettify: true };
+const defaultOptions: MTROptions = { silent: true, prettify: true, allowTracker: true };
 
 // eslint-disable-next-line import/no-mutable-exports
 export let logger: Logger;

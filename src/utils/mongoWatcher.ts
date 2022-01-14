@@ -72,23 +72,28 @@ export class MongoWatcher {
   }
 
   /**
-   * Initiate collection watcher change stream from last event id. if none found, returns undefiend
+   * Initiate collection watcher change stream from last event id. 
+   * Returns undefiend if none found or if allowTracker is false.
    */
   async initiateChangeStreamStartTime(): Promise<any> {
     // Get the last event
-    const latestEvent: any = await changeStreamTrackerModel(this.mongoData.collectionName)
-      .findOne({})
-      .sort({ createdAt: -1 });
-    const latestEventId = latestEvent && latestEvent.eventId;
+    if(this.options.allowTracker) {
+      const latestEvent: any = await changeStreamTrackerModel(this.mongoData.collectionName)
+        .findOne({})
+        .sort({ createdAt: -1 });
+        const latestEventId = latestEvent && latestEvent.eventId;
+        
+        return latestEventId;
+    } 
 
-    return latestEventId;
+    return undefined;
   }
 
   /**
    * Initializes the mongo watcher, given the mongo data.
    */
   async initWatch(): Promise<void> {
-    // Get the last event id that successfully sent to rabbit
+    // Get the last event id that successfully sent to rabbit.
     const lastEventId = await this.initiateChangeStreamStartTime();
 
     // Select DB and Collection
@@ -117,26 +122,12 @@ export class MongoWatcher {
           await Promise.all(
             this.rabbitData.queues.map(async (queue) => formatAndSendMsg(queue, this.options, event, this.mongoData))
           );
+          
+          // Update tracker
+          if(this.options.allowTracker) {
+            this.updateTracker(event);
+          }
 
-          const eventId = (event._id as any)._data;
-          // Update event stream document
-          changeStreamTrackerModel(this.mongoData.collectionName).findOneAndUpdate(
-            { eventId },
-            { eventId, description: event },
-            { upsert: true },
-            async (err: any) => {
-              if (err) criticalLog(`err in create event time ${err}`);
-              else {
-                try {
-                  await changeStreamTrackerModel(this.mongoData.collectionName);
-                } catch (error) {
-                  criticalLog(
-                    `cant remove before events in collection ${this.mongoData.collectionName}, err: ${error}`
-                  );
-                }
-              }
-            }
-          );
         } catch (error) {
           criticalLog(`something went wrong in rabbit send msg ${error}`);
         }
@@ -148,5 +139,31 @@ export class MongoWatcher {
       });
 
     logger.log(`MTR: ===> successful connection to collection: ${this.mongoData.collectionName}`);
+  }
+
+  /**
+   * Updates the tracker with the last event id.
+   * @param event - the last event.
+   */
+  async updateTracker(event: ChangeEvent<any>) {
+    const eventId = (event._id as any)._data;
+    // Update event stream document
+    changeStreamTrackerModel(this.mongoData.collectionName).findOneAndUpdate(
+      { eventId },
+      { eventId, description: event },
+      { upsert: true },
+      async (err: any) => {
+        if (err) criticalLog(`err in create event time ${err}`);
+        else {
+          try {
+            await changeStreamTrackerModel(this.mongoData.collectionName);
+          } catch (error) {
+            criticalLog(
+              `cant remove before events in collection ${this.mongoData.collectionName}, err: ${error}`
+            );
+          }
+        }
+      }
+    );
   }
 }

@@ -43,13 +43,14 @@ contains 3 fields:
 |---|---|---|---|---|
 | 1 | `silent` | `boolean` | if false, logs connection and changes to the console | `true` |
 | 2 | `prettify` | `boolean` | if true, will filter the result and send it in a specific format | `true`|
+| 3 | `prettify` | `boolean` |  if true, will allow the package to track the last point of update for a given collection. Notice that this will create a new collection for each collectionName : `mtr-<collectionName>-tracker`. | `true`|
 
 ### Types:
 
 | # | field | type | info | default |
 |---|---|---|---|---|
 | 1   | `QueueObjectType`    | `name: string, middleware?: MiddlewareFuncType exchange?: ExchangeObjectType` | queue name, middleware parser and exchange | -        |
-| 2   | `MiddlewareFuncType` | `(DataObjectType, collectionName) => (null                                    | string                                     | Object   | Buffer                                                                                                               | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function) |
+| 2   | `MiddlewareFuncType` | `(DataObjectType, string?) => (SupportedReturnTypes)`                                    | The type of the middleware function receiving the change info and the collection name, and translates it to the required format                                     | Object   | Buffer                                                                                                               | string[] | Object[] | Buffer[] | undefined)` | A function for manipulating the prettified data received from the listener before sending it to the queue. will only work with a `prettify:true`. | [identity function](https://en.wikipedia.org/wiki/Identity_function) |
 | 3   | `ExchangeObjectType` | `name: string, type: ExchangeType, routingKey?: string`                       | exchange implementation                    | -        |
 | 4   | `ExchangeType`       | `fanout, topic, direct, headers` | different types of exchanges, read more at - [exchange types](https://www.rabbitmq.com/tutorials/amqp-concepts.html) | -        |
 

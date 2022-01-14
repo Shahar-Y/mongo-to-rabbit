@@ -14,8 +14,14 @@ const changeStreamSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+/**
+ * Returns a schema for tracking the last point of update for a given collection.
+ * Creates one if none exists.
+ * @param collectionName - The name of the collection to track.
+ * @returns - The tracking schema.
+ */
 const changeStreamTrackerModel = (collectionName: string): mongoose.Model<any> => {
-  return mongoose.model<ChangeStream & mongoose.Document>(`${collectionName}-events`, changeStreamSchema);
+  return mongoose.model<ChangeStream & mongoose.Document>(`mtr-${collectionName}-tracker`, changeStreamSchema);
 };
 
 export default changeStreamTrackerModel;
