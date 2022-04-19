@@ -48,6 +48,17 @@ export type QueueObjectType = {
   middleware?: MiddlewareFuncType;
 };
 
-type SupportedReturnTypes = null | string | Object | Buffer | string[] | Object[] | Buffer[] | undefined;
+type SupportedReturnTypes =
+  | null
+  | string
+  | Object
+  | Buffer
+  | string[]
+  | Object[]
+  | Buffer[]
+  | undefined;
 
-export type MiddlewareFuncType = (dataObject: DataObjectType, collection?: string) => SupportedReturnTypes;
+export type MiddlewareFuncType = (
+  dataObject: DataObjectType,
+  collection?: string
+) => SupportedReturnTypes;
