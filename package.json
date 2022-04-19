@@ -15,7 +15,6 @@
     "watch"
   ],
   "main": "lib/index.js",
-  "types": "lib/paramTypes.d.ts",
   "scripts": {
     "start": "tsc && npm run serve",
     "serve": "node lib/index.js",
