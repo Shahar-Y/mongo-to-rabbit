@@ -1,4 +1,4 @@
-version: "3.8"
+version: '3.8'
 
 services:
   mongo1:
@@ -18,7 +18,7 @@ services:
       - mongo2
       - mongo3
     restart: always
-    entrypoint: ["/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0"]
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
 
   mongo2:
     container_name: mongo2
@@ -28,7 +28,7 @@ services:
     expose:
       - 27018
     restart: always
-    entrypoint: ["/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0"]
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
 
   mongo3:
     container_name: mongo3
@@ -38,16 +38,16 @@ services:
     expose:
       - 27019
     restart: always
-    entrypoint: ["/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0"]
+    entrypoint: ['/usr/bin/mongod', '--bind_ip_all', '--replSet', 'rs0']
 
   rabbit:
     image: rabbitmq:management
     hostname: rabbit
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://rabbit:15672"]
+      test: ['CMD', 'curl', '-f', 'http://rabbit:15672']
       interval: 30s
       timeout: 10s
       retries: 5
