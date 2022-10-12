@@ -31,7 +31,7 @@ const rabbitData1: RabbitDataType = {
   rabbitURI: 'amqp://localhost',
 };
 
-const options1: Partial<MTROptions> = { silent: false };
+const options2: Partial<MTROptions> = { silent: false };
 
 // Second colQCouple
 const mongoData2: MongoDataType = {
@@ -45,7 +45,7 @@ const rabbitData2: RabbitDataType = {
 };
 
 console.log('Activating watchAndNotify for the first colQCouple');
-watchAndNotify(mongoData1, rabbitData1, options1);
+watchAndNotify(mongoData1, rabbitData1);
 
 console.log('Activating watchAndNotify for the second colQCouple');
-watchAndNotify(mongoData2, rabbitData2);
+watchAndNotify(mongoData2, rabbitData2, options2);
