@@ -20,7 +20,8 @@ export class Rabbit {
 
   constructor(rabbitData: RabbitDataType) {
     this.rabbitData = rabbitData;
-    if (rabbitData.healthCheckInterval) this.healthCheckInterval = rabbitData.healthCheckInterval;
+    if (rabbitData.healthCheckInterval)
+      this.healthCheckInterval = rabbitData.healthCheckInterval;
   }
 
   /**
@@ -54,11 +55,17 @@ export class Rabbit {
    */
   async initConnection(): Promise<void> {
     // Initialize rabbit connection if the conn isn't ready yet
-    logger.log(`connecting to rabbitMQ on URI: ${this.rabbitData.rabbitURI} ...`);
+    logger.log(
+      `connecting to rabbitMQ on URI: ${this.rabbitData.rabbitURI} ...`
+    );
 
     if (!getRabbitHealthStatus()) {
-      await menash.connect(this.rabbitData.rabbitURI, { retries: this.rabbitData.rabbitRetries });
-      logger.log(`successful connection to rabbitMQ on URI: ${this.rabbitData.rabbitURI}`);
+      await menash.connect(this.rabbitData.rabbitURI, {
+        retries: this.rabbitData.rabbitRetries,
+      });
+      logger.log(
+        `successful connection to rabbitMQ on URI: ${this.rabbitData.rabbitURI}`
+      );
     } else {
       logger.log(`rabbit ${this.rabbitData.rabbitURI} already connected`);
     }
@@ -73,14 +80,17 @@ export class Rabbit {
 
     const { queues } = this.rabbitData;
     queues.map((queue) => {
-      // If queue not exists, create it
+      // If the queue does not exist, create it
       if (!(queue.name in menash.queues)) {
         topology.queues?.push({ name: queue.name, options: { durable: true } });
 
         // If exchange is set, create exchange
         if (queue.exchange) {
           if (!(queue.exchange.name in menash.exchanges))
-            topology.exchanges?.push({ name: queue.exchange.name, type: queue.exchange.type });
+            topology.exchanges?.push({
+              name: queue.exchange.name,
+              type: queue.exchange.type,
+            });
 
           // If queue is bound to an exchange, bind it
           if (menash.bindings.bindings.length < 1) {

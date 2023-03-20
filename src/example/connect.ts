@@ -1,7 +1,16 @@
 import { watchAndNotify } from '../index';
-import { MongoDataType, MTROptions, RabbitDataType, DataObjectType, MiddlewareFuncType } from '../paramTypes';
+import {
+  MongoDataType,
+  MTROptions,
+  RabbitDataType,
+  DataObjectType,
+  MiddlewareFuncType,
+} from '../paramTypes';
 
 // Create two colQCouples and connect to two different queues.
+
+const mongoDBUrl =
+  'mongodb://localhost:27017,localhost:27018,localhost:27019/devDB?replicaSet=rs0';
 
 // First colQCouple
 const middleware1: MiddlewareFuncType = (x: DataObjectType) => {
@@ -12,19 +21,22 @@ const middleware1: MiddlewareFuncType = (x: DataObjectType) => {
 
 const mongoData1: MongoDataType = {
   collectionName: 'files',
-  connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
+  connectionString: mongoDBUrl,
 };
 const rabbitData1: RabbitDataType = {
-  queues: [{ name: 'MyQueueName1', middleware: middleware1 }, { name: 'MyQueueName2' }],
+  queues: [
+    { name: 'MyQueueName1', middleware: middleware1 },
+    { name: 'MyQueueName2' },
+  ],
   rabbitURI: 'amqp://localhost',
 };
 
-const options1: Partial<MTROptions> = { silent: false };
+const options2: Partial<MTROptions> = { silent: false };
 
 // Second colQCouple
 const mongoData2: MongoDataType = {
   collectionName: 'permissions',
-  connectionString: 'mongodb://localhost:27017/devDB?replicaSet=rs0',
+  connectionString: mongoDBUrl,
 };
 
 const rabbitData2: RabbitDataType = {
@@ -32,5 +44,8 @@ const rabbitData2: RabbitDataType = {
   rabbitURI: 'amqp://localhost',
 };
 
-watchAndNotify(mongoData1, rabbitData1, options1);
-watchAndNotify(mongoData2, rabbitData2);
+console.log('Activating watchAndNotify for the first colQCouple');
+watchAndNotify(mongoData1, rabbitData1);
+
+console.log('Activating watchAndNotify for the second colQCouple');
+watchAndNotify(mongoData2, rabbitData2, options2);

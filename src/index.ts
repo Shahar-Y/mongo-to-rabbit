@@ -5,7 +5,11 @@ import { MongoDataType, RabbitDataType, MTROptions } from './paramTypes';
 import { getMongoHealthStatus, MongoWatcher } from './utils/mongoWatcher';
 
 // Default variables
-const defaultOptions: MTROptions = { silent: true, prettify: true };
+const defaultOptions: MTROptions = {
+  silent: true,
+  prettify: true,
+  allowTracker: true,
+};
 
 // eslint-disable-next-line import/no-mutable-exports
 export let logger: Logger;
@@ -28,7 +32,9 @@ async function watchAndNotify(
   // Check if middleware was defiend in queue but the prettify option is false
   for (const queue of rabbitData.queues) {
     if (!options.prettify && queue.middleware !== undefined) {
-      criticalLog('error: middleware option cannot work when prettify is false');
+      criticalLog(
+        'error: middleware option cannot work when prettify is false'
+      );
       return;
     }
   }

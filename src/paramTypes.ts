@@ -13,9 +13,16 @@ export type MongoDataType = {
   healthCheckInterval?: number;
 };
 
+/**
+ * silent: if true - no logs.
+ * prettify: if true - will filter the result and send it in a specific format.
+ * allowTracker: if true - will allow the package to track the last point of update for a given collection.
+ *  Notice that this will create a new collection for each collectionName with the name: mtr-<collectionName>-tracker.
+ */
 export type MTROptions = {
   silent: boolean;
   prettify: boolean;
+  allowTracker: boolean;
 };
 
 export enum ChangeOperation {
