@@ -7,6 +7,8 @@
 
 An npm package designed for listening to MongoDB and notifying a RabbitMQ server on changes.
 
+[Full article](https://github.com/Shahar-Y/mongo-to-rabbit/wiki) in our Wiki.
+
 ![MTR logo](src/images/MTR-logo.jpeg)
 
 Using [MenashMQ](https://www.npmjs.com/package/menashmq) for connection to RabbitMQ.
